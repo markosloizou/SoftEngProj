@@ -24,6 +24,7 @@ enum er { no_DEV = 1, dev = 2, nam = 3, brack = 4, brack_miss = 5,   			//Syntax
 
 using namespace std;
 
+
 class parser {
   network* netz; // instantiations of various classes for parser to use.
   devices* dmz; 
