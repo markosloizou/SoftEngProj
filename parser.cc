@@ -52,45 +52,51 @@ bool parser::readin (void)
   block current_block;
   
   neof = smz->GetNextChar(cur_char);
-  while(noef)
+  while(neof == false)
   {
-	  if(isalpha(cur_char)) noef = smz->GetNextString(str, cur_char); //returns string that starts with current character and moves to the next non-space character
-	  if(isdigit(cur_char)) noef = smz->GetNextNumber(str, cur_char); //returns string that cointains the next number segment
-	  if(cur_char == "(") //Clock input
+	  if(isalpha(cur_char)) 
+	  {
+		  neof = smz->GetNextString(str, cur_char); 
+		  cout << "str: " <<str << "  char: " << cur_char <<endl;//returns string that starts with current character and moves to the next non-space character
+	  }
+	  else if(isdigit(cur_char)) neof = smz->GetNextNumber(number, cur_char); //returns string that cointains the next number segment
+	  else if(cur_char == '(') //Clock input
 		{
-		noef = GetNextChar(cur_char); //Obtain next character
+		cout << "((((((" << endl;
+		neof = smz->GetNextChar(cur_char); //Obtain next character
 		if(isdigit(cur_char)) neof = smz->GetNextNumber(number, cur_char); //Obtain number
 		else 
 			{
-			error_report(input_no, GetCurrentLineNumber(), GetCurrentLine(), "("); //Expected Number
+			cout << "Nooo" << endl;
+			error_report(input_no, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string{'('}); //Expected Number
 			proceed(cur_char,neof); //Proceed to next semicolumn
 			}
 		  
 		neof = smz->GetNextChar(cur_char); //Get next character to see if bracket closes
-		if(cur_char != ")")
+		if(cur_char != ')')
 			{
-			error_report(br_miss, GetCurrentLineNumber(), GetCurrentLine(), "("); //Expected closing brackets
+			error_report(brack_miss, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), "("); //Expected closing brackets
 			proceed(cur_char,neof); //Proceed to next semicolumn
 			}
 		}
-	  if(cur_char == "[") //Gate input
+	  else if(cur_char == '[') //Gate input
 		{
-		noef = GetNextChar(cur_char);
+		neof = smz->GetNextChar(cur_char);
 		if(isdigit(cur_char)) neof = smz->GetNextNumber(number, cur_char);
 		else
 			{
-			error_report(input_no, GetCurrentLineNumber(), GetCurrentLine(), "[")
+			error_report(input_no, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), "[");
 			proceed(cur_char,neof);
 			}
 		
 		neof = smz->GetNextChar(cur_char);
-		if(cur_char != "]") 
+		if(cur_char != ']') 
 			{
-			error_report(br_miss, GetCurrentLineNumber(), GetCurrentLine(), "[");
+			error_report(brack_miss, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), "[");
 			proceed(cur_char,neof);
 			}
 		}
-	  if(cur_char == ";") //Complete circuit component defined. Build network
+	  else if(cur_char == ';') //Complete circuit component defined. Build network
 	  {
 		/*  if(block == devices) //Define device
 		  {
@@ -106,11 +112,13 @@ bool parser::readin (void)
 		  }*/
 		  neof = smz->GetNextChar(cur_char);
 	  }
+	  else neof = smz->GetNextChar(cur_char);
+	  cout << cur_char << endl;
   }
 }
 
 parser::parser (network* network_mod, devices* devices_mod,
-		monitor* monitor_mod, scanner* scanner_mod)
+		monitor* monitor_mod, Scanner* scanner_mod)
 {
   netz = network_mod;  /* make internal copies of these class pointers */
   dmz = devices_mod;   /* so we can call functions from these classes  */
@@ -151,189 +159,190 @@ void parser::error_report(er error_type, int error_line, string current_line, st
 	switch(error_type)
 	{
 		//Syntax Errors
-		case error_type = no_DEV :
+		case no_DEV :
 			cout << red << bbr << "Syntax Error 1: Expected DEVICES at the beginning of definition file (no ;)" << bbr_off << def << endl 	//Display error message
 			<< "Line " << error_line << ": " << current_line << endl																			//Display error line
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;																	//Place pointer underneath error
 			
-		case error_type = dev :
+		case dev :
 			cout << red << bbr << "Syntax Error 2: Device type not recognised" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = nam :
+		case nam :
 			cout << red << bbr << "Syntax Error 3: Illegal device name (names must start with a letter and contain no special characters)" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = brack :
+		case brack :
 			cout << red << bbr << "Syntax Error 4: Expected **BRACKET TYPE** before declaring number of inputs for this device" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = brack_miss :
+		case brack_miss :
 			cout << red << bbr << "Syntax Error 5: Expected **BRACKET TYPE** when declaring this device" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = input_no :
+		case input_no :
 			cout << red << bbr << "Syntax Error 6: Expected positive integer for number of inputs" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = sw_pos :
+		case sw_pos :
 			cout << red << bbr << "Syntax Error 7: Expected 0 or 1 for switch position" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = sw_def :
+		case sw_def :
 			cout << red << bbr << "Syntax Error 8: Invalid switch definition (Expected “= 0” or “= 1”)'" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = semi :
+		case semi :
 			cout << red << bbr << "Syntax Error 9: Expected “;” at end of expression" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = no_CON :
+		case no_CON :
 			cout << red << bbr << "Syntax Error 10: Expected ”CONNECTIONS” before connection definitions (no “;”)" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = D_out :
+		case D_out :
 			cout << red << bbr << "Syntax Error 11: Expected “.Q” or “.QBAR” at output device" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = TO :
+		case TO :
 			cout << red << bbr << "Syntax Error 12: Expected “TO” after output device" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = in_no :
+		case in_no :
 			cout << red << bbr << "Syntax Error 13: Invalid connection input. Need G1.I1 for example" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = in_I :
+		case in_I :
 			cout << red << bbr << "Syntax Error 14: Expected “I” after “.” for input device. Need G1.I1 for example" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = in_to_in :
+		case in_to_in :
 			cout << red << bbr << "Syntax Error 15: Device input connected to device input" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = in_to_out :
+		case in_to_out :
 			cout << red << bbr << "Syntax Error 16: Device input connected to device output" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = out_to_out :
+		case out_to_out :
 			cout << red << bbr << "Syntax Error 17: Device output connected to device output" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = no_MON :
+		case no_MON :
 			cout << red << bbr << "Syntax Error 18: Expected “MONITOR” before monitor points are declared (no “;”)" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = ch :
+		case ch :
 			cout << red << bbr << "Syntax Error 19: Illegal character used" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
 		//Semantic Errors	
-		case error_type = keyword :
+		case keyword :
 			cout << red << bbr << "Semantic Error 1: Reserved keyword used as device identifier" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = inp_no :
+		case inp_no :
 			cout << red << bbr << "Semantic Error 2: Logic gates limited to 16 inputs" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = xor_in :
+		case xor_in :
 			cout << red << bbr << "Semantic Error 3: XOR gate must have two inputs" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = one_in :
+		case one_in :
 			cout << red << bbr << "Semantic Error 4: Logic gates only have a single output (no need for “.”)" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = cl_synt :
+		case cl_synt :
 			cout << red << bbr << "Semantic Error 5: Invalid device definition. Use CLOCK CK(1) or AND G[2] or SWITCH SW" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = log_synt :
+		case log_synt :
 			cout << red << bbr << "Semantic Error 6: Invalid device definition. Use CLOCK CK(1) or AND G[2] or SWITCH SW" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = sw_synt :
+		case sw_synt :
 			cout << red << bbr << "Semantic Error 7: Invalid device definition. Use CLOCK CK(1) or AND G[2] or SWITCH SW" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = out_no_in :
+		case out_no_in :
 			cout << red << bbr << "Semantic Error 8: Cannot connect logic output to clock" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = in_D :
+		case in_D :
 			cout << red << bbr << "Semantic Error 10: Logic gate input must be of the form G1.I1" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = out_D :
+		case out_D :
 			cout << red << bbr << "Semantic Error 11: Logic gate only has one output (no .Q or .QBAR output)" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = undef_dev :
+		case undef_dev :
 			cout << red << bbr << "Semantic Error 12: Device **DEVICE NAME** not defined" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = same_name :
+		case same_name :
 			cout << red << bbr << "Semantic Error 13: Duplicate device definition **DEVICE NAME**" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = mult_in :
+		case mult_in :
 			cout << red << bbr << "Semantic Error 14: Multiple outputs connected to the same input" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
-		case error_type = no_in :
+		case no_in :
 			cout << red << bbr << "Semantic Error 15: Device input is unused" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			
 		//Warnings	
-		case error_type = unused :
+		case unused :
 			cout << cyan << bbr << "Warning: Unused device **DEVICE NAME**" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl;
 			
-		case error_type = truncate :
+		case truncate :
 			cout << cyan << bbr << "Warning: Device name **DEVICE NAME** truncated to 8 characters" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl;
 			
-		case error_type = no_monitor :
+		case no_monitor :
 			cout << cyan << bbr << "Warning: No monitor points specified" << bbr_off << def << endl 
 			<< "Line " << error_line << ": " << current_line << endl;
+		}
 }
 
-void::parser::proceed(char& cur_char, bool& neof) //Move to next semicolumn
+void parser::proceed(char& cur_char, bool& neof) //Move to next semicolumn
 {
-	while (cur_char != ";" && neof == true)  neof = smz->GetNextChar(cur_char);
+	while (cur_char != ';' && neof == true)  neof = smz->GetNextChar(cur_char);
 }
 
 // main function used for debugging
@@ -347,35 +356,13 @@ int main()
 	
 	names *names_mod = new names();
 	string filename = "test.txt";
-	Scanner *scan = Scanner(nmz,filename);
-	network* network_mod(names_mod);
-	devices* devices_mod(names_mod, network_mod);
+	Scanner *scanner_mod = new Scanner(names_mod,filename);
+	network* network_mod = new network(names_mod);
+	devices* devices_mod = new devices(names_mod, network_mod);
 	monitor* monitor_mod = new monitor(names_mod, network_mod);
 	parser *prs = new parser (network_mod,devices_mod, monitor_mod, scanner_mod);
 	
 	prs->readin();
-	while(eof == false)
-	{
-		eof = scan.GetNextSymbol(ch);
-		if(isalpha(ch))
-		{
-			eof = scan.GetNextString(str, ch);
-			if(str.length() != 0)
-			{
-				cout << str << endl;
-			}
-		}	
-	}
-	
-	while(eof == false)
-	{
-		eof = scan.GetNextSymbol(ch);
-		if(isdigit(ch))
-		{
-			eof=scan.GetNextNumber(numb,ch);
-			cout << "Number = " << numb << endl;
-		}
-	}
 	
 	
 	
