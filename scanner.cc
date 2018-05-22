@@ -157,7 +157,7 @@ bool Scanner::GetNextNumber(int &numb, char &ch)
 	return eof_flag;
 }
 
-bool Scanner::GetNextSymbol(char &ch)
+bool Scanner::GetNextChar(char &ch)
 {
 	eof_flag = inBuffer.getChar(current_char);
 	

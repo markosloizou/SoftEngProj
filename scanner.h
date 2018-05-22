@@ -66,7 +66,7 @@ class Scanner{
 		bool GetNextString(string &str, char &ch); 
 		
 		//Gets character and places it in ch. Returns false if eofile has been reached
-		bool GetNextSymbol(char &ch);
+		bool GetNextChar(char &ch);
 		
 		//Gets next number and writes it to numb, character following numb is placed in ch
 		//Returns false if eofile has been reached
