@@ -6,8 +6,8 @@
 /* Network specification */
 
 typedef enum {falling, low, rising, high} asignal;
-typedef enum {aswitch, aclock, andgate, nandgate, orgate,
-	      norgate, xorgate, dtype, baddevice} devicekind;
+typedef enum {aswitch=0, aclock=1, andgate=2, nandgate=3, orgate=4,
+	      norgate=5, xorgate=6, dtype=7, baddevice=-1} devicekind;
 
 struct outputrec {
   name       id;

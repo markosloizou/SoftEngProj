@@ -10,6 +10,13 @@
 
 using namespace std;
 
+//enumeration of devices to match network
+//TODO add the enumaration to a common a file to avoid the duplicate
+//'definition'
+typedef enum {aswitch=0, aclock=1, andgate=2, nandgate=3, orgate=4,
+	      norgate=5, xorgate=6, dtype=7, baddevice=-1} devices;
+
+
 class parser {
   network* netz; // instantiations of various classes for parser to use.
   devices* dmz; 
