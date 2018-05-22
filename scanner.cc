@@ -270,7 +270,11 @@ bool Scanner::GetNextString(string &str, char &ch)
 		}
 	}
 	str = s;
-	eof_flag = GetNextChar(ch);
+	ch = current_char;
+	if(isspace(ch))
+	{
+		eof_flag = GetNextChar(ch);
+	}
 	return eof_flag;
 }
 
@@ -311,7 +315,7 @@ bool Scanner::GetCurrentChar(char &ch)
 
 
 // main used for debugging
-/*
+
 int main()
 {
 	bool eof = false;
@@ -349,11 +353,11 @@ int main()
 			eof=scan.GetNextNumber(numb,ch);
 			cout << "Number = " << numb << endl;
 		}
-	}
+	}*/
 	
 	
 	
 	return 0;
 }
 
-*/
+
