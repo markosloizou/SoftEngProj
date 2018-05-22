@@ -73,7 +73,7 @@ class Scanner{
 		bool GetNextNumber(int &numb, char&ch);
 		
 		//Returns the current character
-		bool GetCurrentSymbol(char &ch);
+		bool GetCurrentChar(char &ch);
 		
 		//Retunrs the Whole Current Line
 		string GetCurrentLine();

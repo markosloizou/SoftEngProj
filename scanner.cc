@@ -153,7 +153,7 @@ bool Scanner::GetNextNumber(int &numb, char &ch)
 		numb = -1; //No number found
 	}
 	
-	ch = inBuffer.NextCharacter();
+	eof_flag = GetNextChar(ch);
 	return eof_flag;
 }
 
@@ -270,7 +270,7 @@ bool Scanner::GetNextString(string &str, char &ch)
 		}
 	}
 	str = s;
-	ch = inBuffer.NextCharacter();
+	eof_flag = GetNextChar(ch);
 	return eof_flag;
 }
 
@@ -303,7 +303,7 @@ void Scanner::skipMultiLineComment()
 	}
 }
 
-bool Scanner::GetCurrentSymbol(char &ch)
+bool Scanner::GetCurrentChar(char &ch)
 {
 	ch = current_char;
 	return eof_flag;
@@ -326,14 +326,17 @@ int main()
 	
 	while(eof == false)
 	{
-		eof = scan.GetNextSymbol(ch);
 		if(isalpha(ch))
 		{
 			eof = scan.GetNextString(str, ch);
 			if(str.length() != 0)
 			{
-				cout << str << endl;
+				cout <<"Current String: " << str << "\tNext char: " << ch <<endl;
 			}
+		}
+		else
+		{
+			eof = scan.GetNextChar(ch);
 		}	
 	}
 	
