@@ -5,6 +5,9 @@
 #include <wx/glcanvas.h>
 #include <wx/spinctrl.h>
 #include <wx/textctrl.h>
+
+#include <vector>
+
 #include "names.h"
 #include "devices.h"
 #include "monitor.h"
@@ -36,6 +39,7 @@ class MyFrame: public wxFrame
   void OnButton(wxCommandEvent& event);   // event handler for push button
   void OnSpin(wxSpinEvent& event);        // event handler for spin control
   void OnText(wxCommandEvent& event);     // event handler for text entry field
+  
   DECLARE_EVENT_TABLE()
 };
     
@@ -46,6 +50,11 @@ class MyGLCanvas: public wxGLCanvas
 	     const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize, long style = 0,
 	     const wxString& name = "MyGLCanvas", const wxPalette &palette=wxNullPalette); // constructor
   void Render(wxString example_text = "", int cycles = -1); // function to draw canvas contents
+  
+  void ShowGrid(bool show);
+  void ZoomVert(int zoom);
+  void ZoomHor(int zoom);
+  
  private:
   wxGLContext *context;              // OpenGL rendering context
   bool init;                         // has the OpenGL context been initialised?
@@ -59,6 +68,45 @@ class MyGLCanvas: public wxGLCanvas
   void OnSize(wxSizeEvent& event);   // event handler for when canvas is resized
   void OnPaint(wxPaintEvent& event); // event handler for when canvas is exposed
   void OnMouse(wxMouseEvent& event); // event handler for mouse events inside canvas
+  
+  void printGrid();
+  void maxNumber();
+  
+  // events
+	void mouseMoved(wxMouseEvent& event);
+	void mouseDown(wxMouseEvent& event);
+	void mouseWheelMoved(wxMouseEvent& event);
+	void mouseReleased(wxMouseEvent& event);
+	void rightClick(wxMouseEvent& event);
+	void mouseLeftWindow(wxMouseEvent& event);
+	void keyPressed(wxKeyEvent& event);
+	void keyReleased(wxKeyEvent& event);
+	
+	int signals = 100;
+	vector< vector<int> > signls; 
+	void generateSignals();
+	
+	int start_signal = 0;
+	int end_signal = 10;
+	
+	bool showGrid;
+	
+	//variables used for printng
+	int height;
+	int width;
+	
+	float signal_height;
+	float signal_width;
+	
+	int start_signal_time;
+	int end_signal_time;
+	
+	int max_number_to_print;
+	float space_between_signals = 20.0;
+	
+	int cycles;
+	
+	
   DECLARE_EVENT_TABLE()
 };
     

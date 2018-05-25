@@ -2,15 +2,27 @@
 #include <GL/glut.h>
 #include "wx_icon.xpm"
 #include <iostream>
+#include <cstdlib>
+#include <string>
 
 using namespace std;
 
 // MyGLCanvas ////////////////////////////////////////////////////////////////////////////////////
 
 BEGIN_EVENT_TABLE(MyGLCanvas, wxGLCanvas)
-  EVT_SIZE(MyGLCanvas::OnSize)
-  EVT_PAINT(MyGLCanvas::OnPaint)
-  EVT_MOUSE_EVENTS(MyGLCanvas::OnMouse)
+	EVT_SIZE(MyGLCanvas::OnSize)
+	EVT_PAINT(MyGLCanvas::OnPaint)
+	//EVT_MOUSE_EVENTS(MyGLCanvas::OnMouse)
+	EVT_MOTION(MyGLCanvas::mouseMoved)
+	EVT_LEFT_DOWN(MyGLCanvas::mouseDown)
+	EVT_LEFT_UP(MyGLCanvas::mouseReleased)
+	EVT_RIGHT_DOWN(MyGLCanvas::rightClick)
+	EVT_LEAVE_WINDOW(MyGLCanvas::mouseLeftWindow)
+	//EVT_SIZE(MyGLCanvas::resized)
+	EVT_KEY_DOWN(MyGLCanvas::keyPressed)
+	EVT_KEY_UP(MyGLCanvas::keyReleased)
+	EVT_MOUSEWHEEL(MyGLCanvas::mouseWheelMoved)
+	//EVT_PAINT(MyGLCanvas::render)
 END_EVENT_TABLE()
   
 int wxglcanvas_attrib_list[5] = {WX_GL_RGBA, WX_GL_DOUBLEBUFFER, WX_GL_DEPTH_SIZE, 16, 0};
@@ -28,6 +40,25 @@ MyGLCanvas::MyGLCanvas(wxWindow *parent, wxWindowID id, monitor* monitor_mod, na
   pan_y = 0;
   zoom = 1.0;
   cyclesdisplayed = -1;
+  
+  generateSignals();//generate fake signals
+  
+  GetClientSize(&width, &height);// get the size of the frame
+  
+  //set default signal dimensions
+  signal_height = 30.0;
+  signal_width = 30.0;
+  
+  //set default signal start and end times
+  start_signal_time = 0;
+  end_signal_time = 100;
+  
+	max_number_to_print = floor((float)height/(signal_height + space_between_signals));
+	
+	start_signal = 0;
+	end_signal = start_signal + max_number_to_print;
+	
+	showGrid = true;
 }
 
 void MyGLCanvas::Render(wxString example_text, int cycles)
@@ -39,7 +70,13 @@ void MyGLCanvas::Render(wxString example_text, int cycles)
   float y;
   unsigned int i;
   asignal s;
+  
+  int w, h;
+  GetClientSize(&w, &h);
+  
+   max_number_to_print = floor(height/(signal_height + space_between_signals));
 
+    end_signal = start_signal + max_number_to_print;
   if (cycles >= 0) cyclesdisplayed = cycles;
 
   SetCurrent(*context);
@@ -48,6 +85,8 @@ void MyGLCanvas::Render(wxString example_text, int cycles)
     init = true;
   }
   glClear(GL_COLOR_BUFFER_BIT);
+  
+  if(showGrid == true) printGrid();
 
   if ((cyclesdisplayed >= 0) && (mmz->moncount() > 0)) { // draw the first monitor signal, get trace from monitor class
 
@@ -55,25 +94,61 @@ void MyGLCanvas::Render(wxString example_text, int cycles)
     glBegin(GL_LINE_STRIP);
     for (i=0; i<cyclesdisplayed; i++) {
       if (mmz->getsignaltrace(0, i, s)) {
-	if (s==low) y = 10.0;
-	if (s==high) y = 30.0;
-	glVertex2f(20*i+10.0, y); 
-	glVertex2f(20*i+30.0, y);
+		if (s==low) y = 10.0;
+		if (s==high) y = 30.0;
+		glVertex2f(20*i+10.0, y); 
+		glVertex2f(20*i+30.0, y);
       }
     }
     glEnd();
 
   } else { // draw an artificial trace
 
+	//set color
     glColor3f(0.0, 1.0, 0.0);
-    glBegin(GL_LINE_STRIP);
-    for (i=0; i<5; i++) {
-      if (i%2) y = 10.0;
-      else y = 30.0;
-      glVertex2f(20*i+10.0, y); 
-      glVertex2f(20*i+30.0, y);
-    }
-    glEnd();
+    
+    wxString text;//text to print component name
+
+  	wxPaintDC dc(this); // required for correct refreshing under MS windows
+
+
+    int max = floor(h/(height));
+    
+    for(int i = start_signal; i < end_signal; i++)
+    {
+    	glColor3f(0.0, 0.0, 0.0); // color for text
+    	glRasterPos2f(10,  (signal_height+space_between_signals)/2 + (i-start_signal)*(signal_height+space_between_signals));
+    	wxString name;
+    	name.Printf( "Dev %d", i);
+    	
+    	for (int k = 0; k < name.Len(); k++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, name[k]);
+    	
+    	glColor3f(0.25, 0.25, 1.0);
+    	glBegin(GL_LINE_STRIP);//draw line segments
+    	for(int j = 0; j < 100; j++)
+    	{
+    		int l = 10.0;
+    		if(signls[i][j] == 1) l += signal_height;
+    		
+    		glVertex2f(signal_width*j+60.0, l+((i-start_signal)*(signal_height+space_between_signals))); 
+		  	glVertex2f(signal_width*j+60.0 + signal_width, l+((i-start_signal)*(signal_height+space_between_signals)));
+		}    
+		glEnd();	
+	}
+	/*
+    
+    for(int j = 0; j < 100; j++)
+    {
+    	glBegin(GL_LINE_STRIP);//draw line segments
+		for (i=0; i<5; i++) {
+		  if (i%2) y = 10.0;
+		  else y = 30.0;
+		  glVertex2f(20*i+10.0, y+(j*height)); 
+		  glVertex2f(20*i+30.0, y+(j*height));
+		}
+		 
+	}*/
+   
     
   }
 
@@ -85,6 +160,22 @@ void MyGLCanvas::Render(wxString example_text, int cycles)
   // We've been drawing to the back buffer, flush the graphics pipeline and swap the back buffer to the front
   glFlush();
   SwapBuffers();
+}
+
+void MyGLCanvas::generateSignals()
+{
+	vector<int> v;
+	for(int i = 0; i < signals; i++)
+	{
+		for(int j = 0; j < 100; j++)
+		{
+			int n = (rand()%100);
+			if(n >  50) v.push_back(1);
+			else v.push_back(0);
+		}
+		signls.push_back(v);
+		v.clear();	
+	}
 }
 
 void MyGLCanvas::InitGL()
@@ -121,9 +212,15 @@ void MyGLCanvas::OnPaint(wxPaintEvent& event)
 void MyGLCanvas::OnSize(wxSizeEvent& event)
   // Event handler for when the canvas is resized
 {
+  GetClientSize(&width, &height);
+  max_number_to_print = floor((float)height/(signal_height + space_between_signals));
+  //cout << "max to print: " << max_number_to_print << endl;
+  end_signal = start_signal + max_number_to_print;
   init = false;; // this will force the viewport and projection matrices to be reconfigured on the next paint
+  
 }
 
+/*
 void MyGLCanvas::OnMouse(wxMouseEvent& event)
   // Event handler for mouse events inside the GL canvas
 {
@@ -160,6 +257,107 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 
   if (event.GetWheelRotation() || event.ButtonDown() || event.ButtonUp() || event.Dragging() || event.Leaving()) Render(text);
 }
+*/
+
+void MyGLCanvas::ShowGrid(bool show)
+{
+	showGrid = show;
+}
+
+void MyGLCanvas::printGrid()
+{
+	  
+	GetClientSize(&width, &height);
+	for(int i = 0; i < floor(((float)width-60.0)/signal_width)+1; i ++)
+	{
+		glColor3f(240.0/255.0, 12.0/255.0, 39.0/255.0); //light gray color
+		glRasterPos2f(60.0 + i*signal_width - signal_width/2, height - 10);
+    	wxString name;
+    	name.Printf( "%d", i);
+    	for (int k = 0; k < name.Len(); k++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, name[k]);
+    	
+    	glColor3f(0.90, 0.90, 0.90); //light gray color
+		//draw time ticks
+		glBegin(GL_LINE_STRIP);//draw line segments
+		glVertex2f(60.0 + i*signal_width,0);
+		glVertex2f(60.0 + i*signal_width,height);
+		glEnd();
+	}
+	
+	for(int j = 0; j < max_number_to_print;    j++)
+	{
+		//draw horizontal grid
+		glBegin(GL_LINE_STRIP);//draw line segments
+		glVertex2f(0, 10.0 + j *(signal_height + space_between_signals));
+		glVertex2f(width, 10.0 + j * (signal_height + space_between_signals));
+		glEnd();
+	}
+	
+	
+}
+
+void MyGLCanvas::ZoomVert(int zoom)
+{
+	float scale;
+	scale = (float)zoom/100.0;
+	signal_height = signal_height*scale;
+	space_between_signals = space_between_signals*scale;
+	wxString str;
+	str.Printf("");
+	Render();
+}
+
+void MyGLCanvas::ZoomHor(int zoom)
+{
+	float scale;
+	scale = (float)zoom/100.0;
+	signal_width = signal_width*scale;
+
+	wxString str;
+	str.Printf("");
+	Render();
+}
+
+// some useful events to use
+void MyGLCanvas::mouseMoved(wxMouseEvent& event) {}
+void MyGLCanvas::mouseDown(wxMouseEvent& event) {}
+
+void MyGLCanvas::mouseWheelMoved(wxMouseEvent& event) 
+{
+	int r = event.GetWheelRotation();
+	if(r>0) 
+	{
+		end_signal += 1;
+		start_signal += 1;
+	}
+	else
+	{
+		 end_signal -=1;
+		 start_signal -=1;
+	 }
+	
+	
+	if(start_signal < 0) 
+	{
+		start_signal = 0;
+		end_signal = start_signal+max_number_to_print;
+	}
+	if(end_signal > 100)
+	{
+		end_signal = 100;
+		start_signal = end_signal-max_number_to_print;
+	}
+	
+	
+	
+	Render("Mouse Wheel Event", 20);
+}
+
+void MyGLCanvas::mouseReleased(wxMouseEvent& event) {}
+void MyGLCanvas::rightClick(wxMouseEvent& event) {}
+void MyGLCanvas::mouseLeftWindow(wxMouseEvent& event) {}
+void MyGLCanvas::keyPressed(wxKeyEvent& event) {}
+void MyGLCanvas::keyReleased(wxKeyEvent& event) {}
 
 // MyFrame ///////////////////////////////////////////////////////////////////////////////////////
 
