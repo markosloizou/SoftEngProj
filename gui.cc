@@ -153,9 +153,9 @@ void MyGLCanvas::Render(wxString example_text, int cycles)
   }
 
   // Example of how to use GLUT to draw text on the canvas
-  glColor3f(0.0, 0.0, 1.0);
-  glRasterPos2f(10, 100);
-  for (i = 0; i < example_text.Len(); i++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, example_text[i]);
+  //glColor3f(0.0, 0.0, 1.0);
+  //glRasterPos2f(10, 100);
+  //for (i = 0; i < example_text.Len(); i++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, example_text[i]);
 
   // We've been drawing to the back buffer, flush the graphics pipeline and swap the back buffer to the front
   glFlush();
@@ -325,7 +325,7 @@ void MyGLCanvas::mouseDown(wxMouseEvent& event) {}
 void MyGLCanvas::mouseWheelMoved(wxMouseEvent& event) 
 {
 	int r = event.GetWheelRotation();
-	if(r>0) 
+	if(r<0) 
 	{
 		end_signal += 1;
 		start_signal += 1;
@@ -365,13 +365,19 @@ void MyGLCanvas::keyReleased(wxKeyEvent& event) {}
 BEGIN_EVENT_TABLE(MyFrame, wxFrame)
   EVT_MENU(wxID_EXIT, MyFrame::OnExit)
   EVT_MENU(wxID_ABOUT, MyFrame::OnAbout)
-  EVT_BUTTON(MY_BUTTON_ID, MyFrame::OnButton)
+  EVT_BUTTON(MY_RUN_BUTTON_ID, MyFrame::OnRunButton)
   EVT_SPINCTRL(MY_SPINCNTRL_ID, MyFrame::OnSpin)
   EVT_TEXT_ENTER(MY_TEXTCTRL_ID, MyFrame::OnText)
+  EVT_SLIDER(VERT_SLIDER_ID, MyFrame::OnVertZoomRelease)
+  EVT_SLIDER(HORZ_SLIDER_ID, MyFrame::OnHorzZoomRelease)
+  EVT_CHOICE(SWITCH_LIST_ID, MyFrame::SwitchListChoice)
+  EVT_RADIOBUTTON(SWITCH_BUTTON_ID, MyFrame::OnToggle)
+  EVT_CHECKLISTBOX(SWITCH_LISTBOX_ID, MyFrame::SwitchList)
+  EVT_CHECKLISTBOX(MONITOR_LISTBOX_ID, MyFrame::MonitorList)
 END_EVENT_TABLE()
-  
+ 
 MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, const wxSize& size,
-		 names *names_mod, devices *devices_mod, monitor *monitor_mod, long style):
+   	  names *names_mod, devices *devices_mod, monitor *monitor_mod, long style):
   wxFrame(parent, wxID_ANY, title, pos, size, style)
   // Constructor - initialises pointers to names, devices and monitor classes, lays out widgets
   // using sizers
@@ -383,29 +389,103 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
   dmz = devices_mod;
   mmz = monitor_mod;
   if (nmz == NULL || dmz == NULL || mmz == NULL) {
-    cout << "Cannot operate GUI without names, devices and monitor classes" << endl;
-    exit(1);
+	cout << "Cannot operate GUI without names, devices and monitor classes" << endl;
+	exit(1);
   }
 
   wxMenu *fileMenu = new wxMenu;
+  wxMenu *editMenu = new wxMenu;
   fileMenu->Append(wxID_ABOUT, "&About");
   fileMenu->Append(wxID_EXIT, "&Quit");
+  editMenu->Append(wxID_ABOUT, "&About");
   wxMenuBar *menuBar = new wxMenuBar;
   menuBar->Append(fileMenu, "&File");
+  menuBar->Append(editMenu, "&Edit");
   SetMenuBar(menuBar);
 
   wxBoxSizer *topsizer = new wxBoxSizer(wxHORIZONTAL);
   canvas = new MyGLCanvas(this, wxID_ANY, monitor_mod, names_mod);
-  topsizer->Add(canvas, 1, wxEXPAND | wxALL, 10);
+  topsizer->Add(canvas, 1, wxEXPAND | wxLEFT | wxTOP | wxBOTTOM, 10);
 
   wxBoxSizer *button_sizer = new wxBoxSizer(wxVERTICAL);
-  button_sizer->Add(new wxButton(this, MY_BUTTON_ID, "Run"), 0, wxALL, 10);
-  button_sizer->Add(new wxStaticText(this, wxID_ANY, "Cycles"), 0, wxTOP|wxLEFT|wxRIGHT, 10);
-  spin = new wxSpinCtrl(this, MY_SPINCNTRL_ID, wxString("10"));
-  button_sizer->Add(spin, 0 , wxALL, 10);
 
-  button_sizer->Add(new wxTextCtrl(this, MY_TEXTCTRL_ID, "", wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER), 0 , wxALL, 10);
-  topsizer->Add(button_sizer, 0, wxALIGN_CENTER);
+  wxBoxSizer *run_cont_sizer = new wxBoxSizer(wxVERTICAL);
+
+
+  //wxBoxSizer *vert_slider_sizer = new wxBoxSizer(wxHORIZONTAL);
+
+  //button_sizer->Add(new wxStaticText(this, wxID_ANY, "                                       "), 0, wxEXPAND);
+
+  button_sizer->Add(new wxStaticText(this, wxID_ANY, "Number of Cycles"), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
+
+  spin = new wxSpinCtrl(this, MY_SPINCNTRL_ID, wxString("10"));
+  button_sizer->Add(spin, 0 , wxALIGN_CENTER_HORIZONTAL|wxALL, 10);
+
+  //vector<wxChar*> vectest;
+
+  //vectest.push_back(wxT("SW1"));
+  //vectest.push_back(wxT("SW2"));
+
+  button_sizer->Add(new wxStaticText(this, wxID_ANY, "Switch State"), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
+
+  wxString *switch_list = new wxString[6];
+  //switch_list[0] = vectest[0];
+  //switch_list[1] = vectest[1];
+  switch_list[0] = wxT("SW1");
+  switch_list[1] = wxT("SW2");
+  switch_list[2] = wxT("SW3");
+  switch_list[3] = wxT("SW4");
+  switch_list[4] = wxT("SW5");
+  switch_list[5] = wxT("SW6");
+
+
+  wxString *monitor_list = new wxString[6];
+  monitor_list[0] = wxT("M1");
+  monitor_list[1] = wxT("M2");
+  monitor_list[2] = wxT("M3");
+  monitor_list[3] = wxT("M4");
+  monitor_list[4] = wxT("M5");
+  monitor_list[5] = wxT("M6");
+
+
+  wxCheckListBox *toggle_list = new wxCheckListBox(this, SWITCH_LISTBOX_ID, wxDefaultPosition, wxSize(125, 95), 6, switch_list);
+
+  button_sizer->Add(toggle_list, 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
+
+  button_sizer->Add(new wxStaticText(this, wxID_ANY, "Monitor Points"), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
+
+  wxCheckListBox *monitor_list1 = new wxCheckListBox(this, MONITOR_LISTBOX_ID, wxDefaultPosition, wxSize(125, 95), 6, monitor_list);
+
+  button_sizer->Add(monitor_list1, 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
+
+
+  button_sizer->Add(new wxStaticText(this, wxID_ANY, "Vertical Zoom"), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
+   
+  button_sizer->Add(vert_zoom_value, 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
+
+  vert_zoom_slider = new wxSlider(this, VERT_SLIDER_ID, 50, 0, 100, 
+      wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL);
+  
+  button_sizer->Add(vert_zoom_slider, 0, wxALIGN_CENTER_HORIZONTAL|wxEXPAND|wxALL, 10);
+
+  button_sizer->Add(new wxStaticText(this, wxID_ANY, "Horizontal Zoom"), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
+  
+  button_sizer->Add(horz_zoom_value, 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
+
+  horz_zoom_slider = new wxSlider(this, HORZ_SLIDER_ID, 50, 0, 100, 
+      wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL);
+
+  button_sizer->Add(horz_zoom_slider, 0, wxALIGN_CENTER_HORIZONTAL|wxEXPAND|wxALL, 10);
+
+  run_cont_sizer->Add(new wxButton(this, MY_RUN_BUTTON_ID, "Run"), 0, wxALL, 10);
+
+  run_cont_sizer->Add(new wxButton(this, wxID_ANY, "Continue"), 0, wxALL, 10);
+	 
+  button_sizer->Add(run_cont_sizer, 0, wxALIGN_CENTER_HORIZONTAL|wxALIGN_BOTTOM|wxBOTTOM, 10);
+
+  //button_sizer->Add(new wxTextCtrl(this, MY_TEXTCTRL_ID, "", wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER), 0 , wxALL, 10);
+
+  topsizer->Add(button_sizer, 0, wxALIGN_TOP|wxEXPAND);
 
   SetSizeHints(400, 400);
   SetSizer(topsizer);
@@ -424,7 +504,8 @@ void MyFrame::OnAbout(wxCommandEvent &event)
   about.ShowModal();
 }
 
-void MyFrame::OnButton(wxCommandEvent &event)
+
+void MyFrame::OnRunButton(wxCommandEvent &event)
   // Event handler for the push button
 {
   int n, ncycles;
@@ -441,7 +522,7 @@ void MyFrame::OnSpin(wxSpinEvent &event)
 {
   wxString text;
 
-  text.Printf("New spinctrl value %d", event.GetPosition());
+  text.Printf("New spinctrl value %d lsdkjfls", event.GetPosition());
   canvas->Render(text);
 }
 
@@ -461,13 +542,94 @@ void MyFrame::runnetwork(int ncycles)
   int n = ncycles;
 
   while ((n > 0) && ok) {
-    dmz->executedevices (ok);
-    if (ok) {
-      n--;
-      mmz->recordsignals ();
-    } else
-      cout << "Error: network is oscillating" << endl;
+	dmz->executedevices (ok);
+	if (ok) {
+  	n--;
+  	mmz->recordsignals ();
+	} else
+  	cout << "Error: network is oscillating" << endl;
   }
   if (ok) cyclescompleted = cyclescompleted + ncycles;
   else cyclescompleted = 0;
+}
+
+void MyFrame::OnVertZoomRelease(wxCommandEvent &event)
+
+{
+
+  int vert_sliderpos = vert_zoom_slider->GetValue(); 
+
+  float vert_zoom_fl;
+  int vert_zoom_int;
+
+  if(vert_sliderpos <= 50) {
+
+    vert_zoom_fl = (1.5*vert_sliderpos)+25.0;
+    vert_zoom_int = floor(vert_zoom_fl);
+
+  }
+
+  if(vert_sliderpos > 50) {
+
+    vert_zoom_fl = 6.0*((1.0*vert_sliderpos)-50.0)+100.0;
+    vert_zoom_int = floor(vert_zoom_fl);
+
+  }
+
+  string vert_zoom_str = "x" + to_string(vert_zoom_int) + "%";
+  wxString vert_zoom_wxstr(vert_zoom_str.c_str(), wxConvUTF8);
+
+  vert_zoom_value->SetLabel(vert_zoom_wxstr);
+
+}
+
+void MyFrame::OnHorzZoomRelease(wxCommandEvent &event)
+
+{
+
+  int horz_sliderpos = horz_zoom_slider->GetValue(); 
+
+  float horz_zoom_fl;
+  int horz_zoom_int;
+
+  if(horz_sliderpos <= 50) {
+
+    horz_zoom_fl = (1.5*horz_sliderpos)+25.0;
+    horz_zoom_int = floor(horz_zoom_fl);
+
+  }
+
+  if(horz_sliderpos > 50) {
+
+    horz_zoom_fl = 6.0*((1.0*horz_sliderpos)-50.0)+100.0;
+    horz_zoom_int = floor(horz_zoom_fl);
+
+  }
+
+  string horz_zoom_str = "x" + to_string(horz_zoom_int) + "%";
+  wxString horz_zoom_wxstr(horz_zoom_str.c_str(), wxConvUTF8);
+
+  horz_zoom_value->SetLabel(horz_zoom_wxstr);
+
+}
+
+void MyFrame::SwitchListChoice(wxCommandEvent &event)
+{
+
+}
+
+void MyFrame::OnToggle(wxCommandEvent &event)
+{
+
+} 
+
+void MyFrame::SwitchList(wxCommandEvent &event)
+{
+
+} 
+
+
+void MyFrame::MonitorList(wxCommandEvent &event)
+{
+
 }

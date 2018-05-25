@@ -5,7 +5,7 @@
 #include <wx/glcanvas.h>
 #include <wx/spinctrl.h>
 #include <wx/textctrl.h>
-
+#include <string>
 #include <vector>
 
 #include "names.h"
@@ -15,7 +15,13 @@
 enum { 
   MY_SPINCNTRL_ID = wxID_HIGHEST + 1,
   MY_TEXTCTRL_ID,
-  MY_BUTTON_ID,
+  MY_RUN_BUTTON_ID,
+  VERT_SLIDER_ID,
+  HORZ_SLIDER_ID,
+  SWITCH_LIST_ID,
+  SWITCH_BUTTON_ID,
+  SWITCH_LISTBOX_ID,
+  MONITOR_LISTBOX_ID,
 }; // widget identifiers
 
 class MyGLCanvas;
@@ -32,13 +38,23 @@ class MyFrame: public wxFrame
   names *nmz;                             // pointer to names class
   devices *dmz;                           // pointer to devices class
   monitor *mmz;                           // pointer to monitor class
+  wxSlider *vert_zoom_slider;
+  wxSlider *horz_zoom_slider;
   int cyclescompleted;                    // how many simulation cycles have been completed
   void runnetwork(int ncycles);           // function to run the logic network
   void OnExit(wxCommandEvent& event);     // event handler for exit menu item
   void OnAbout(wxCommandEvent& event);    // event handler for about menu item
-  void OnButton(wxCommandEvent& event);   // event handler for push button
+  void OnRunButton(wxCommandEvent& event);   // event handler for push button
   void OnSpin(wxSpinEvent& event);        // event handler for spin control
   void OnText(wxCommandEvent& event);     // event handler for text entry field
+  void OnVertZoomRelease(wxCommandEvent &event);
+  void OnHorzZoomRelease(wxCommandEvent &event);
+  void SwitchListChoice(wxCommandEvent &event);
+  void OnToggle(wxCommandEvent &event);	
+  void SwitchList(wxCommandEvent &event);
+  void MonitorList(wxCommandEvent &event);
+  wxStaticText *vert_zoom_value = new wxStaticText(this, wxID_ANY, "x100%");
+  wxStaticText *horz_zoom_value = new wxStaticText(this, wxID_ANY, "x100%");
   
   DECLARE_EVENT_TABLE()
 };
