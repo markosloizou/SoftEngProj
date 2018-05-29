@@ -5,6 +5,9 @@
 #include <cstdlib>
 #include <string>
 
+#define SIGNAL_HEIGHT 30
+#define SIGNAL_WIDTH 30
+#define SIGNAL_SPACE 20
 using namespace std;
 
 // MyGLCanvas ////////////////////////////////////////////////////////////////////////////////////
@@ -300,8 +303,8 @@ void MyGLCanvas::ZoomVert(int zoom)
 {
 	float scale;
 	scale = (float)zoom/100.0;
-	signal_height = signal_height*scale;
-	space_between_signals = space_between_signals*scale;
+	signal_height = SIGNAL_HEIGHT*scale;
+	space_between_signals = SIGNAL_SPACE*scale;
 	wxString str;
 	str.Printf("");
 	Render();
@@ -311,12 +314,66 @@ void MyGLCanvas::ZoomHor(int zoom)
 {
 	float scale;
 	scale = (float)zoom/100.0;
-	signal_width = signal_width*scale;
+	signal_width = SIGNAL_WIDTH*scale;
 
 	wxString str;
 	str.Printf("");
 	Render();
 }
+
+void MyGLCanvas::save_canvas()
+{		
+	unsigned char *pixels;
+  	wxImage *save_im;
+
+  	GetClientSize(&width, &height);
+  	
+  	pixels = (unsigned char *) malloc(3 * width * height);
+  	glPixelStorei(GL_PACK_ALIGNMENT, 1);
+  	glReadBuffer(GL_BACK_RIGHT);
+  	glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+
+	mirror_char(pixels, width, height);
+  	save_im = new wxImage(width, height);
+  	save_im->SetData(pixels, width, height, false);
+  	save_im->Mirror(false);
+  	
+  	wxFileDialog *save_path_dialog = new wxFileDialog(this, wxFileSelectorPromptStr, wxEmptyString, wxEmptyString, wxFileSelectorDefaultWildcardStr, wxFD_SAVE);
+  	save_path_dialog->ShowModal();
+  	
+  	
+  	wxString save_path;
+  	save_path.Printf("");
+  	//wxString *save_path = new wxString(wxT(""));
+  	save_path = save_path_dialog->GetPath();
+  	if(!(save_path.IsEmpty()))
+  	{
+  		save_im->SaveFile(save_path, wxBITMAP_TYPE_PNG);
+  	}
+}
+
+
+void MyGLCanvas::mirror_char(unsigned char *pixels, int width, int height)
+{
+    int rows = height / 2;
+    int row_stride = width * 3;
+    unsigned char* temp_row = (unsigned char*)malloc(row_stride);
+
+    int source_offset, target_offset;
+
+    for (int rowIndex = 0; rowIndex < rows; rowIndex++)
+    {
+        source_offset = rowIndex * row_stride;
+        target_offset = (height - rowIndex - 1) * row_stride;
+
+        memcpy(temp_row, pixels + source_offset, row_stride);
+        memcpy(pixels + source_offset, pixels + target_offset, row_stride);
+        memcpy(pixels + target_offset, temp_row, row_stride);
+    }
+    free(temp_row);
+    temp_row = NULL;
+}
+
 
 // some useful events to use
 void MyGLCanvas::mouseMoved(wxMouseEvent& event) {}
@@ -363,273 +420,381 @@ void MyGLCanvas::keyReleased(wxKeyEvent& event) {}
 
 
 BEGIN_EVENT_TABLE(MyFrame, wxFrame)
-  EVT_MENU(wxID_EXIT, MyFrame::OnExit)
-  EVT_MENU(wxID_ABOUT, MyFrame::OnAbout)
-  EVT_BUTTON(MY_RUN_BUTTON_ID, MyFrame::OnRunButton)
-  EVT_SPINCTRL(MY_SPINCNTRL_ID, MyFrame::OnSpin)
-  EVT_TEXT_ENTER(MY_TEXTCTRL_ID, MyFrame::OnText)
-  EVT_SLIDER(VERT_SLIDER_ID, MyFrame::OnVertZoomRelease)
-  EVT_SLIDER(HORZ_SLIDER_ID, MyFrame::OnHorzZoomRelease)
-  EVT_CHOICE(SWITCH_LIST_ID, MyFrame::SwitchListChoice)
-  EVT_RADIOBUTTON(SWITCH_BUTTON_ID, MyFrame::OnToggle)
-  EVT_CHECKLISTBOX(SWITCH_LISTBOX_ID, MyFrame::SwitchList)
-  EVT_CHECKLISTBOX(MONITOR_LISTBOX_ID, MyFrame::MonitorList)
+	EVT_MENU(wxID_EXIT, MyFrame::OnExit)
+	EVT_MENU(wxID_ABOUT, MyFrame::OnAbout)
+	EVT_MENU(SHOW_GRID_ID, MyFrame::ShowGrid)
+	EVT_MENU(SHOW_SETTINGS_ID, MyFrame::ShowSettings)
+	EVT_MENU(SHOW_DIALOG_ID, MyFrame::ShowDialog)
+	EVT_SPINCTRL(MY_SPINCNTRL_ID, MyFrame::OnSpin)
+	EVT_CHECKLISTBOX(SWITCH_LISTBOX_ID, MyFrame::SwitchList)
+	EVT_CHECKLISTBOX(MONITOR_LISTBOX_ID, MyFrame::MonitorList)
+	EVT_SLIDER(VERT_SLIDER_ID, MyFrame::OnVertZoomRelease)
+	EVT_SLIDER(HORZ_SLIDER_ID, MyFrame::OnHorzZoomRelease)  
+	EVT_BUTTON(MY_RUN_BUTTON_ID, MyFrame::OnRunButton)
+	EVT_TOOL(RUN_TOOLBAR_ID, MyFrame::OnRunButton)
+	EVT_BUTTON(MY_CONTINUE_BUTTON_ID, MyFrame::OnContinueButton)
+	EVT_TOOL(CONTINUE_TOOLBAR_ID, MyFrame::OnContinueButton)
+	EVT_TOOL(SAVE_TOOLBAR_ID, MyFrame::SaveCanvas)
 END_EVENT_TABLE()
  
 MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, const wxSize& size,
    	  names *names_mod, devices *devices_mod, monitor *monitor_mod, long style):
-  wxFrame(parent, wxID_ANY, title, pos, size, style)
-  // Constructor - initialises pointers to names, devices and monitor classes, lays out widgets
-  // using sizers
+	wxFrame(parent, wxID_ANY, title, pos, size, style)
+	// Constructor - initialises pointers to names, devices and monitor classes, lays out widgets
+  	// using sizers
 {
-  SetIcon(wxIcon(wx_icon));
+	
+  	SetIcon(wxIcon(wx_icon));
+	wxInitAllImageHandlers();
 
-  cyclescompleted = 0;
-  nmz = names_mod;
-  dmz = devices_mod;
-  mmz = monitor_mod;
-  if (nmz == NULL || dmz == NULL || mmz == NULL) {
-	cout << "Cannot operate GUI without names, devices and monitor classes" << endl;
-	exit(1);
-  }
+  	cyclescompleted = 0;
+  	nmz = names_mod;
+  	dmz = devices_mod;
+  	mmz = monitor_mod;
+  	if (nmz == NULL || dmz == NULL || mmz == NULL) {
+		cout << "Cannot operate GUI without names, devices and monitor classes" << endl;
+		exit(1);
+  	}
 
-  wxMenu *fileMenu = new wxMenu;
-  wxMenu *editMenu = new wxMenu;
-  fileMenu->Append(wxID_ABOUT, "&About");
-  fileMenu->Append(wxID_EXIT, "&Quit");
-  editMenu->Append(wxID_ABOUT, "&About");
-  wxMenuBar *menuBar = new wxMenuBar;
-  menuBar->Append(fileMenu, "&File");
-  menuBar->Append(editMenu, "&Edit");
-  SetMenuBar(menuBar);
+	// Set up top menu bar
 
-  wxBoxSizer *topsizer = new wxBoxSizer(wxHORIZONTAL);
-  canvas = new MyGLCanvas(this, wxID_ANY, monitor_mod, names_mod);
-  topsizer->Add(canvas, 1, wxEXPAND | wxLEFT | wxTOP | wxBOTTOM, 10);
+	fileMenu->Append(wxID_ABOUT, "&About");
+	fileMenu->Append(wxID_EXIT, "&Quit");
+	editMenu->Append(wxID_ANY, "&Placeholder");
+	viewMenu->Append(SHOW_GRID_ID, "&Hide Grid");
+	windowMenu->Append(SHOW_SETTINGS_ID, "&Hide Settings Window");
+	windowMenu->Append(SHOW_DIALOG_ID, "&Hide Dialog Window");
+	wxMenuBar *menuBar = new wxMenuBar;
+	menuBar->Append(fileMenu, "&File");
+	menuBar->Append(editMenu, "&Edit");
+	menuBar->Append(viewMenu, "&View");
+	menuBar->Append(windowMenu, "&Window");
+	SetMenuBar(menuBar);
+	
+	// Set up canvas
+  
+	canvas = new MyGLCanvas(left_canvas_window, wxID_ANY, monitor_mod, names_mod);
+	
+	canvas_sizer->Add(canvas, 1, wxEXPAND);
+	
+	left_canvas_window->SetSizer(canvas_sizer);
+	
+	// Set up dialog box to output changes made 
+  	
+  	dialog_sizer->Add(action_list1, 0, wxEXPAND);
+  	
+  	dialog_window->SetBackgroundColour(*wxWHITE);
+  	
+  	dialog_window->SetSizer(dialog_sizer);
 
-  wxBoxSizer *button_sizer = new wxBoxSizer(wxVERTICAL);
+	// Set up controls for entering the number of cycles displayed
 
-  wxBoxSizer *run_cont_sizer = new wxBoxSizer(wxVERTICAL);
+	right_button_sizer->Add(new wxStaticText(right_button_window, wxID_ANY, "Number of Cycles"), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
 
+	right_button_sizer->Add(spin, 0 , wxALIGN_CENTER_HORIZONTAL|wxALL, 5);
 
-  //wxBoxSizer *vert_slider_sizer = new wxBoxSizer(wxHORIZONTAL);
+	// Set up controls for toggling switches
 
-  //button_sizer->Add(new wxStaticText(this, wxID_ANY, "                                       "), 0, wxEXPAND);
+	right_button_sizer->Add(new wxStaticText(right_button_window, wxID_ANY, "Switch State"), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 5);
 
-  button_sizer->Add(new wxStaticText(this, wxID_ANY, "Number of Cycles"), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
+	right_button_sizer->Add(toggle_list, 0, wxALIGN_CENTER_HORIZONTAL|wxALL, 5);
+	
+	// Set up controls for toggling monitor points
 
-  spin = new wxSpinCtrl(this, MY_SPINCNTRL_ID, wxString("10"));
-  button_sizer->Add(spin, 0 , wxALIGN_CENTER_HORIZONTAL|wxALL, 10);
+	right_button_sizer->Add(new wxStaticText(right_button_window, wxID_ANY, "Monitor Points"), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 5);
 
-  //vector<wxChar*> vectest;
+	right_button_sizer->Add(monitor_list1, 0, wxALIGN_CENTER_HORIZONTAL|wxALL, 5);
+	
+	// Set up controls for vertical zoom slider
 
-  //vectest.push_back(wxT("SW1"));
-  //vectest.push_back(wxT("SW2"));
-
-  button_sizer->Add(new wxStaticText(this, wxID_ANY, "Switch State"), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
-
-  wxString *switch_list = new wxString[6];
-  //switch_list[0] = vectest[0];
-  //switch_list[1] = vectest[1];
-  switch_list[0] = wxT("SW1");
-  switch_list[1] = wxT("SW2");
-  switch_list[2] = wxT("SW3");
-  switch_list[3] = wxT("SW4");
-  switch_list[4] = wxT("SW5");
-  switch_list[5] = wxT("SW6");
-
-
-  wxString *monitor_list = new wxString[6];
-  monitor_list[0] = wxT("M1");
-  monitor_list[1] = wxT("M2");
-  monitor_list[2] = wxT("M3");
-  monitor_list[3] = wxT("M4");
-  monitor_list[4] = wxT("M5");
-  monitor_list[5] = wxT("M6");
-
-
-  wxCheckListBox *toggle_list = new wxCheckListBox(this, SWITCH_LISTBOX_ID, wxDefaultPosition, wxSize(125, 95), 6, switch_list);
-
-  button_sizer->Add(toggle_list, 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
-
-  button_sizer->Add(new wxStaticText(this, wxID_ANY, "Monitor Points"), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
-
-  wxCheckListBox *monitor_list1 = new wxCheckListBox(this, MONITOR_LISTBOX_ID, wxDefaultPosition, wxSize(125, 95), 6, monitor_list);
-
-  button_sizer->Add(monitor_list1, 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
-
-
-  button_sizer->Add(new wxStaticText(this, wxID_ANY, "Vertical Zoom"), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
+	right_button_sizer->Add(new wxStaticText(right_button_window, wxID_ANY, "Vertical Zoom"), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 5);
    
-  button_sizer->Add(vert_zoom_value, 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
+	right_button_sizer->Add(vert_zoom_value, 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 5);
 
-  vert_zoom_slider = new wxSlider(this, VERT_SLIDER_ID, 50, 0, 100, 
-      wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL);
+	vert_zoom_slider = new wxSlider(right_button_window, VERT_SLIDER_ID, 50, 0, 100, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL);
   
-  button_sizer->Add(vert_zoom_slider, 0, wxALIGN_CENTER_HORIZONTAL|wxEXPAND|wxALL, 10);
+	right_button_sizer->Add(vert_zoom_slider, 0, wxALIGN_CENTER_HORIZONTAL|wxEXPAND|wxALL, 5);
+	
+	// Set up controls for horizontal zoom slider
 
-  button_sizer->Add(new wxStaticText(this, wxID_ANY, "Horizontal Zoom"), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
+	right_button_sizer->Add(new wxStaticText(right_button_window, wxID_ANY, "Horizontal Zoom"), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 5);
   
-  button_sizer->Add(horz_zoom_value, 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
+  	right_button_sizer->Add(horz_zoom_value, 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 5);
 
-  horz_zoom_slider = new wxSlider(this, HORZ_SLIDER_ID, 50, 0, 100, 
-      wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL);
+  	horz_zoom_slider = new wxSlider(right_button_window, HORZ_SLIDER_ID, 50, 0, 100, wxDefaultPosition, wxDefaultSize, wxSL_HORIZONTAL);
 
-  button_sizer->Add(horz_zoom_slider, 0, wxALIGN_CENTER_HORIZONTAL|wxEXPAND|wxALL, 10);
+  	right_button_sizer->Add(horz_zoom_slider, 0, wxALIGN_CENTER_HORIZONTAL|wxEXPAND|wxALL, 5);
+  	
+  	// Set up control for run button
 
-  run_cont_sizer->Add(new wxButton(this, MY_RUN_BUTTON_ID, "Run"), 0, wxALL, 10);
+  	right_button_sizer->Add(new wxButton(right_button_window, MY_RUN_BUTTON_ID, "Run"), 0, wxALIGN_CENTER_HORIZONTAL|wxALL, 5);
+  	
+  	// Set up control for continue button  
+  
+  	right_button_sizer->Add(new wxButton(right_button_window, MY_CONTINUE_BUTTON_ID, "Continue"), 0, wxALIGN_CENTER_HORIZONTAL|wxALL, 5);   	
+  	right_button_window->SetSizer(right_button_sizer);
+  	
+	// Set up toolbar
+	
+	wxBitmap play_icon(wxT("play1.png"), wxBITMAP_TYPE_PNG);
+	wxBitmap continue_icon(wxT("continue.png"), wxBITMAP_TYPE_PNG);
+	wxBitmap save_icon(wxT("save.png"), wxBITMAP_TYPE_PNG);
+	wxToolBar *top_toolbar = new wxToolBar(this, TOOLBAR_ID);
+	
+	top_toolbar->AddTool(RUN_TOOLBAR_ID, wxT("Play"), play_icon);
+	top_toolbar->AddTool(CONTINUE_TOOLBAR_ID, wxT("Continue"), continue_icon);
+	top_toolbar->AddTool(SAVE_TOOLBAR_ID, wxT("Save Circuit"), save_icon);
+	top_toolbar->Realize();
+	
+	//wxFilePickerCtrl *save_path = new wxFilePickerCtrl(this, wxID_ANY);
+	
+	toolbar_sizer->Add(top_toolbar, 0, wxEXPAND);
+	//toolbar_sizer->Add(save_path, 0, wxEXPAND);  	
+  	
+  	// Finalise application layout
+  	
+  	left_canvas_sizer->Add(toolbar_sizer, 0, wxALIGN_TOP|wxEXPAND);
+  	
+  	left_canvas_sizer->Add(left_canvas_window, 1, wxEXPAND);
+  	
+  	left_canvas_sizer->Add(dialog_window, 0, wxALIGN_BOTTOM|wxEXPAND|wxTOP, 5); 	
+  
+  	frame_sizer->Add(left_canvas_sizer, 1, wxALIGN_TOP|wxEXPAND|wxALL, 5);
 
-  run_cont_sizer->Add(new wxButton(this, wxID_ANY, "Continue"), 0, wxALL, 10);
-	 
-  button_sizer->Add(run_cont_sizer, 0, wxALIGN_CENTER_HORIZONTAL|wxALIGN_BOTTOM|wxBOTTOM, 10);
+  	frame_sizer->Add(right_button_window, 0, wxEXPAND|wxALIGN_TOP|wxALIGN_RIGHT|wxTOP|wxBOTTOM|wxRIGHT, 5); 
 
-  //button_sizer->Add(new wxTextCtrl(this, MY_TEXTCTRL_ID, "", wxDefaultPosition, wxDefaultSize, wxTE_PROCESS_ENTER), 0 , wxALL, 10);
-
-  topsizer->Add(button_sizer, 0, wxALIGN_TOP|wxEXPAND);
-
-  SetSizeHints(400, 400);
-  SetSizer(topsizer);
+  	SetSizeHints(400, 400);
+  	SetSizer(frame_sizer);
+  
 }
 
 void MyFrame::OnExit(wxCommandEvent &event)
-  // Event handler for the exit menu item
+	// Event handler for the exit menu item
 {
-  Close(true);
+  	Close(true);
 }
 
 void MyFrame::OnAbout(wxCommandEvent &event)
-  // Event handler for the about menu item
+  	// Event handler for the about menu item
 {
-  wxMessageDialog about(this, "Example wxWidgets GUI\nAndrew Gee\nJune 2014", "About Logsim", wxICON_INFORMATION | wxOK);
-  about.ShowModal();
+  	//wxMessageDialog about(this, "Example wxWidgets GUI\nAndrew Gee\nJune 2014", "About Logsim", wxICON_INFORMATION | wxOK);
+  	//about.ShowModal();
+  	
 }
 
-
-void MyFrame::OnRunButton(wxCommandEvent &event)
-  // Event handler for the push button
+void MyFrame::ShowGrid(wxCommandEvent &event)
 {
-  int n, ncycles;
+	canvas->ShowGrid(!show_grid);
+	if(show_grid)
+	{
+	viewMenu->SetLabel(SHOW_GRID_ID, "&Show Grid");
+	}
+	else
+	{
+	viewMenu->SetLabel(SHOW_GRID_ID, "&Hide Grid");
+	}
+	show_grid = !show_grid;
+}
 
-  cyclescompleted = 0;
-  dmz->initdevices ();
-  mmz->resetmonitor ();
-  runnetwork(spin->GetValue());
-  canvas->Render("Run button pressed", cyclescompleted);
+void MyFrame::ShowSettings(wxCommandEvent &event)
+{
+	right_button_window->Show(!show_settings);
+	if(show_settings)
+	{
+	windowMenu->SetLabel(SHOW_SETTINGS_ID, "&Show Settings Window");
+	}
+	else
+	{
+	windowMenu->SetLabel(SHOW_SETTINGS_ID, "&Hide Settings Window");
+	}
+	frame_sizer->Layout();
+	show_settings = !show_settings;
+}
+
+void MyFrame::ShowDialog(wxCommandEvent &event)
+{
+	dialog_window->Show(!show_dialog);
+	if(show_dialog)
+	{
+	windowMenu->SetLabel(SHOW_DIALOG_ID, "&Show Dialog Window");
+	}
+	else
+	{
+	windowMenu->SetLabel(SHOW_DIALOG_ID, "&Hide Dialog Window");
+	}
+	left_canvas_sizer->Layout();
+	show_dialog = !show_dialog;
 }
 
 void MyFrame::OnSpin(wxSpinEvent &event)
-  // Event handler for the spin control
-{
-  wxString text;
-
-  text.Printf("New spinctrl value %d lsdkjfls", event.GetPosition());
-  canvas->Render(text);
+  	// Event handler for the spin control
+{	
+  	string cycle_num_str = "Number of simulated cycles set to " + to_string(event.GetPosition());
+  	print_action(cycle_num_str);
 }
-
-void MyFrame::OnText(wxCommandEvent &event)
-  // Event handler for the text entry field
-{
-  wxString text;
-
-  text.Printf("New text entered %s", event.GetString().c_str());
-  canvas->Render(text);
-}
-
-void MyFrame::runnetwork(int ncycles)
-  // Function to run the network, derived from corresponding function in userint.cc
-{
-  bool ok = true;
-  int n = ncycles;
-
-  while ((n > 0) && ok) {
-	dmz->executedevices (ok);
-	if (ok) {
-  	n--;
-  	mmz->recordsignals ();
-	} else
-  	cout << "Error: network is oscillating" << endl;
-  }
-  if (ok) cyclescompleted = cyclescompleted + ncycles;
-  else cyclescompleted = 0;
-}
-
-void MyFrame::OnVertZoomRelease(wxCommandEvent &event)
-
-{
-
-  int vert_sliderpos = vert_zoom_slider->GetValue(); 
-
-  float vert_zoom_fl;
-  int vert_zoom_int;
-
-  if(vert_sliderpos <= 50) {
-
-    vert_zoom_fl = (1.5*vert_sliderpos)+25.0;
-    vert_zoom_int = floor(vert_zoom_fl);
-
-  }
-
-  if(vert_sliderpos > 50) {
-
-    vert_zoom_fl = 6.0*((1.0*vert_sliderpos)-50.0)+100.0;
-    vert_zoom_int = floor(vert_zoom_fl);
-
-  }
-
-  string vert_zoom_str = "x" + to_string(vert_zoom_int) + "%";
-  wxString vert_zoom_wxstr(vert_zoom_str.c_str(), wxConvUTF8);
-
-  vert_zoom_value->SetLabel(vert_zoom_wxstr);
-
-}
-
-void MyFrame::OnHorzZoomRelease(wxCommandEvent &event)
-
-{
-
-  int horz_sliderpos = horz_zoom_slider->GetValue(); 
-
-  float horz_zoom_fl;
-  int horz_zoom_int;
-
-  if(horz_sliderpos <= 50) {
-
-    horz_zoom_fl = (1.5*horz_sliderpos)+25.0;
-    horz_zoom_int = floor(horz_zoom_fl);
-
-  }
-
-  if(horz_sliderpos > 50) {
-
-    horz_zoom_fl = 6.0*((1.0*horz_sliderpos)-50.0)+100.0;
-    horz_zoom_int = floor(horz_zoom_fl);
-
-  }
-
-  string horz_zoom_str = "x" + to_string(horz_zoom_int) + "%";
-  wxString horz_zoom_wxstr(horz_zoom_str.c_str(), wxConvUTF8);
-
-  horz_zoom_value->SetLabel(horz_zoom_wxstr);
-
-}
-
-void MyFrame::SwitchListChoice(wxCommandEvent &event)
-{
-
-}
-
-void MyFrame::OnToggle(wxCommandEvent &event)
-{
-
-} 
 
 void MyFrame::SwitchList(wxCommandEvent &event)
 {
 
+	string switch_str;
+	int switch_index = event.GetInt();
+	string switch_choice = string(switch_list[switch_index].mb_str());
+	if(toggle_list->IsChecked(switch_index))
+	{
+		switch_str = "Switch " + switch_choice + " toggled on";
+	}
+	else
+	{
+		switch_str = "Switch " + switch_choice + " toggled off";
+	}
+	print_action(switch_str);
 } 
-
 
 void MyFrame::MonitorList(wxCommandEvent &event)
 {
-
+	string monitor_str;
+	int monitor_index = event.GetInt();
+	string monitor_choice = string(monitor_list[monitor_index].mb_str());
+	if(monitor_list1->IsChecked(monitor_index))
+	{
+		monitor_str = "Added monitor to " + monitor_choice;
+	}
+	else
+	{
+		monitor_str = "Removed monitor from " + monitor_choice;
+	}
+	print_action(monitor_str);
 }
+
+void MyFrame::OnVertZoomRelease(wxCommandEvent &event)
+{
+  	int vert_sliderpos = vert_zoom_slider->GetValue(); 
+
+  	float vert_zoom_fl;
+  	int vert_zoom_int;
+
+  	if(vert_sliderpos <= 50) 
+  	{
+    	vert_zoom_fl = (1.5*vert_sliderpos)+25.0;
+    	vert_zoom_int = floor(vert_zoom_fl);
+  	}
+  	
+  	if(vert_sliderpos > 50) 
+  	{
+    	vert_zoom_fl = 6.0*((1.0*vert_sliderpos)-50.0)+100.0;
+    	vert_zoom_int = floor(vert_zoom_fl);
+  	}
+  	
+  	string vert_zoom_str = "x" + to_string(vert_zoom_int) + "%";
+  	wxString vert_zoom_wxstr(vert_zoom_str.c_str(), wxConvUTF8);
+
+  	vert_zoom_value->SetLabel(vert_zoom_wxstr);
+  
+  	canvas->ZoomVert(vert_zoom_int);
+}
+
+void MyFrame::OnHorzZoomRelease(wxCommandEvent &event)
+{
+  	int horz_sliderpos = horz_zoom_slider->GetValue(); 
+
+  	float horz_zoom_fl;
+  	int horz_zoom_int;
+
+  	if(horz_sliderpos <= 50) 
+  	{
+    	horz_zoom_fl = (1.5*horz_sliderpos)+25.0;
+    	horz_zoom_int = floor(horz_zoom_fl);
+  	}
+
+  	if(horz_sliderpos > 50) 
+  	{
+    	horz_zoom_fl = 6.0*((1.0*horz_sliderpos)-50.0)+100.0;
+    	horz_zoom_int = floor(horz_zoom_fl);
+  	}
+
+  	string horz_zoom_str = "x" + to_string(horz_zoom_int) + "%";
+  	wxString horz_zoom_wxstr(horz_zoom_str.c_str(), wxConvUTF8);
+
+  	horz_zoom_value->SetLabel(horz_zoom_wxstr);
+  
+  	canvas->ZoomHor(horz_zoom_int);
+}
+
+void MyFrame::OnRunButton(wxCommandEvent &event)
+  	// Event handler for the push button
+{
+  	int n, ncycles;
+
+  	cyclescompleted = 0;
+  	dmz->initdevices ();
+  	mmz->resetmonitor ();
+  	runnetwork(spin->GetValue());
+  	
+  	string run_str = "Simulation started for " + to_string(spin->GetValue()) + " cycles";
+  	print_action(run_str);
+}
+
+void MyFrame::OnContinueButton(wxCommandEvent &event)
+{
+	string continue_str = "Simulation continued for an additional " + to_string(spin->GetValue()) + " cycles";
+	print_action(continue_str);
+}
+
+void MyFrame::SaveCanvas(wxCommandEvent &event)
+{
+	canvas->save_canvas();
+}
+
+void MyFrame::runnetwork(int ncycles)
+  	// Function to run the network, derived from corresponding function in userint.cc
+{
+  	bool ok = true;
+  	int n = ncycles;
+
+  	while ((n > 0) && ok) {
+		dmz->executedevices (ok);
+		if (ok) {
+  		n--;
+  		mmz->recordsignals ();
+		} else
+  		cout << "Error: network is oscillating" << endl;
+  	}
+  	if (ok) cyclescompleted = cyclescompleted + ncycles;
+  	else cyclescompleted = 0;
+	
+}
+
+void MyFrame::print_action(string message)
+{
+  	string action_message = to_string(action_num) + ": " + message; 
+  	
+  	
+  	wxString message_wxstr(action_message.c_str(), wxConvUTF8);
+	
+	wxString *addtolist = new wxString[1]{message_wxstr};
+	action_list1->InsertItems(1, addtolist, 0);
+	action_list1->EnsureVisible(0);
+	
+	action_num = action_num+1;	
+}
+/*
+void MyFrame::mirror_char(unsigned char *pixels, int width, int height)
+{
+    int rows = height / 2;
+    int row_stride = width * 3;
+    unsigned char* temp_row = (unsigned char*)malloc(row_stride);
+
+    int source_offset, target_offset;
+
+    for (int rowIndex = 0; rowIndex < rows; rowIndex++)
+    {
+        source_offset = rowIndex * row_stride;
+        target_offset = (height - rowIndex - 1) * row_stride;
+
+        memcpy(temp_row, pixels + source_offset, row_stride);
+        memcpy(pixels + source_offset, pixels + target_offset, row_stride);
+        memcpy(pixels + target_offset, temp_row, row_stride);
+    }
+}
+*/
+
