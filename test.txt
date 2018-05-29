@@ -1,0 +1,49 @@
+DEVICES
+
+SWITCH SW1 = 0;
+SWITCH SW2 = 1;
+CLOCK CLK1[1];		//Careful if this is undefined!! 
+CLOCK CLK2[5];
+AND AND1[2], AND2[5], AND3[14]; 
+NAND NA1[3]; /* s m comment */
+OR OR1[2];
+NOR N1[2];	//Careful naming two devices with the same name (currently says device kind not recognised)
+XOR X1;
+XOR X2;		//Problem when missing first brracket //asad
+DTYPE D1; OR A23[2];
+//lol
+//lol2
+//lol3
+
+CONNECTIONS  
+
+CLK1 TO OR1.I1;		//Enters infite loop here!!
+SW2 TO AND1.I2;
+SW1 TO AND1.I1;
+AND1 TO OR1.I2;		//Semicolumn problem!!
+X1 TO D1.CLK;
+D1.Q TO D1.SET;
+
+//noooo
+
+/*
+multi 
+
+l
+l
+*/
+//nooo2
+
+
+
+
+MONITOR 
+
+
+OR1;
+CLK1;
+D1.Q;
+OR1;
+OR1;
+
+END

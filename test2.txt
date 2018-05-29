@@ -1,0 +1,46 @@
+DEVICES
+
+CLOCK CL1[1], CL2[2], CL3[3];
+CLOCK CL5[5];
+
+SWITCH S1 = 1, S2 = 1;
+SWITCH SOFF = 0;	
+/*This switch will be connected
+  to the set and reset pins of the 
+  Dtype latch */
+  
+DTYPE D;	//Define logic devices
+AND A[3];
+NAND Na[2];
+OR O[2];
+NOR N[2];
+XOR X12345678910111213;
+
+CONNECTIONS
+
+S1 TO A.I1;	//Connections to AND
+CL2 TO A.I2;
+CL3 TO A.I3;
+
+S2 TO Na.I1;	//Connections to NAND
+CL5 TO Na.I2; 
+
+CL1 TO D.CLK;	//Connections to Dtype
+A TO D.DATA;
+SOFF TO D.SET;
+SOFF TO D.CLEAR;
+
+Na TO O.I1;	//Connections to OR
+D.QBAR TO O.I2;
+
+O TO N.I1;	//Connections to NOR
+D.Q TO N.I2;
+
+N TO X12345678910111213.I1;	//Connections to XOR
+O TO X12345678910111213.I2;
+
+MONITOR
+
+X12345678910111213, CL1, D.Q;
+
+END
