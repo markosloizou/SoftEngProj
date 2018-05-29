@@ -315,7 +315,7 @@ bool Scanner::GetCurrentChar(char &ch)
 
 
 // main used for debugging
-
+/*
 int main()
 {
 	bool eof = false;
@@ -353,11 +353,10 @@ int main()
 			eof=scan.GetNextNumber(numb,ch);
 			cout << "Number = " << numb << endl;
 		}
-	}*/
-	
+	}	
 	
 	
 	return 0;
 }
 
-
+*/
