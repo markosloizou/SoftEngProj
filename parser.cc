@@ -54,6 +54,14 @@ bool parser::readin (void)
   cout << endl << "Loading Device Definition File..." << endl << endl;
   
   eof = smz->GetNextChar(cur_char);							//Get First Character
+  
+  if(eof == true)
+  {
+  	error_report(Empty_file, smz->GetCurrentLineNumber(), smz->GetCurrentLine()," ");  //The file contains nothing
+  	nerrors++;	//Aggregate the number of errors
+  	return false;
+  }
+  
   if(isalpha(cur_char)) 
   {
 	  eof = smz->GetNextString(str, cur_char); 					//Get First String
@@ -112,6 +120,17 @@ bool parser::readin (void)
 			break;
 	}
   }
+  if(eof == true)
+  {
+  	if(current_phase != finito)
+  	{
+  		end_of_file(nerrors);					//Phase IV prelude in case of abrupt file end
+  		nerrors++;
+  		return false;
+  	}
+  }
+  if(nerrors > 0) return false;						//There are still some errors in the definition file that must be fixed
+  else return true;							//Move to Phase IV (over to GUI)
 }
 
 bool parser::defineDevice(char &ch)					//Function to read in device refinitions. Returns true if all ok
@@ -225,7 +244,7 @@ string parser::isDeviceType(int index)			//Translates internal representation of
 	if(index == 11)			return "CLEAR";
 	if(index == 12)			return "Q";
 	if(index == 13)			return "QBAR";*/
-	else				return "ERROR";
+	else				return "ERROR";		//We should not get this
 }
 
 bool parser::readDevice(char& ch,devicekind kind)		//Function to sort devices according to type then call correct function to create device
@@ -333,6 +352,7 @@ bool parser::readSwitch(char &ch)			//Function that defines Switches
 	if(isalpha(ch))
 	{
 		eof = smz->GetNextString(str, ch);
+		if(str.length() > 8) error_report(Long_identifier, smz->GetCurrentLineNumber()-1, smz->GetCurrentLine(), str); //Issue warning if device name is too long
 		
 		if(ch == '=')
 		{
@@ -395,6 +415,7 @@ bool parser::readSwitch(char &ch)			//Function that defines Switches
 			  		{
 			  			if (debugging) cout << "Created ON SWITCH with name " << str << endl;
 			  		}
+			  		return true;
 				}
 			}
 			else
@@ -402,6 +423,7 @@ bool parser::readSwitch(char &ch)			//Function that defines Switches
 				error_report(Invalid_switch_position, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch));  	//Switch must be either ON or OFF
 				proceed(ch,eof);
 				nerrors++;
+				return false;
 			}
 		}
 		else
@@ -409,6 +431,7 @@ bool parser::readSwitch(char &ch)			//Function that defines Switches
 			error_report(Invalid_switch_definition, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 		//Switch definition must follow EBNF structure
 			proceed(ch,eof);
 			nerrors++;
+			return false;
 		}
 	}
 	else
@@ -427,6 +450,7 @@ bool parser::readFixedDevice(char &ch, devicekind kind)			//Function that define
 	if(isalpha(ch))
 	{
 		eof = smz -> GetNextString(str,ch);
+		if(str.length() > 8) error_report(Long_identifier, smz->GetCurrentLineNumber()-1, smz->GetCurrentLine(), str); //Issue warning if device name is too long
 		
 		name id;
 		
@@ -534,6 +558,7 @@ bool parser::readVariableDevice(char& ch, devicekind kind)			//Function that def
 	{
 
 		eof = smz -> GetNextString(str,ch);
+		if(str.length() > 8) error_report(Long_identifier, smz->GetCurrentLineNumber()-1, smz->GetCurrentLine(), str); //Issue warning if device name is too long
 		
 		if(ch != '[') 							//Number of inputs must be within brackets
 		{
@@ -597,10 +622,17 @@ bool parser::readVariableDevice(char& ch, devicekind kind)			//Function that def
 			}
 		}
 		
+		if(number == 0)							//Can't have any device with zero inputs
+		{
+				error_report(Invalid_clock_input, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), to_string(number)); 
+				proceed(ch,eof);
+				nerrors++;
+				return false;	
+		}
 		
 		if(kind != aclock)						//Device is a logic gate
 		{
-			if(number < 1 || number > 16)
+			if(number < 1 || number > 16)				//Number of inputs must be between these two numbers
 			{
 				error_report(Invalid_gate_inputs, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), to_string(number)); 
 				proceed(ch,eof);
@@ -684,10 +716,10 @@ bool parser::defineConnections(char & ch)		//Function to define connections
 	
 	name outDevID;					//Internal Variable for connection declaration
 	name outDevPinID;
-	string outDevName;
-	name inDevID;
-		
 	name outDevKind;
+	string outDevName;
+
+	name inDevID;
 	name inDevPinID;				
 	string inDevName;
 	
@@ -713,7 +745,7 @@ bool parser::defineConnections(char & ch)		//Function to define connections
 		
 		if(str == "END")
 		{	
-			if(nconnections == 0 && ConnectionsRequired() != 0)													
+			if(nconnections == 0 && ConnectionsRequired() != 0) 						//Declared end before all necessary connections have been established												
 			{
 				error_report(No_connections, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch));
 				current_phase = finito;									//Move to Phase IV
@@ -723,7 +755,7 @@ bool parser::defineConnections(char & ch)		//Function to define connections
 			{
 				error_report(No_monitor_points, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch));
 				current_phase = finito;									//Move to Phase IV
-				return true;
+				return true;	//Monitor points can be defined in GUI so no need for these here
 			}
 		}
 		
@@ -785,7 +817,7 @@ bool parser::defineConnections(char & ch)		//Function to define connections
 				
 				if(outDevPinID == blankname)
 				{
-					error_report(Internal_error, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+					error_report(Nonexistent_pin, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 
 					proceed(ch,eof);
 					nerrors++;
 					return false;
@@ -839,6 +871,7 @@ bool parser::defineConnections(char & ch)		//Function to define connections
 		}
 		
 		eof = smz -> GetNextString(str,ch);
+		
 		inDevName = str;
 		kind = getKind(str);		//Find the device type for the input device
 		
@@ -897,7 +930,7 @@ bool parser::defineConnections(char & ch)		//Function to define connections
 			
 			if(inDevPinID == blankname)
 			{
-				error_report(Internal_error, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+				error_report(Nonexistent_pin, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 
 				proceed(ch,eof);
 				nerrors++;
 				return false;
@@ -945,7 +978,7 @@ bool parser::defineConnections(char & ch)		//Function to define connections
 					
 					if(inDevPinID == blankname)
 					{
-						error_report(Internal_error, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+						error_report(Nonexistent_pin, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 
 						proceed(ch,eof);
 						nerrors++;
 						return false;
@@ -975,9 +1008,9 @@ bool parser::defineConnections(char & ch)		//Function to define connections
 	
 	netz->makeconnection(inDevID,inDevPinID,outDevID,outDevPinID,ok);
 	
-	if(!ok)
+	if(!ok) 					//Connection cannot be established if pin does not exist
 	{
-		error_report(Internal_error, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), " "); 
+		error_report(Nonexistent_pin, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), inDevName); 
 		proceed(ch,eof);
 		nerrors++;
 		return false;
@@ -1069,7 +1102,15 @@ bool parser::createMonitor(char &ch)			//Function to set up monitor points on an
 			deviceName = str;
 			eof = smz->GetNextString(str,ch);
 			
-			if(str != "Q" && str != "QBAR")
+
+			if(str == "DATA" || str == "CLK" || str == "SET" || str == "CLEAR")
+			{
+				error_report(Monitor_input, smz->GetCurrentLineNumber(), smz->GetCurrentLine(),string{ch});
+				proceed(ch,eof); 								 	
+				nerrors++;
+				return false;	
+			}
+			else if(str != "Q" && str != "QBAR")
 			{
 				error_report(Invalid_D_Output, smz->GetCurrentLineNumber(), smz->GetCurrentLine(),str);
 				proceed(ch,eof); 								 	
@@ -1097,6 +1138,14 @@ bool parser::createMonitor(char &ch)			//Function to set up monitor points on an
 		}	
 		else
 		{
+			if(ch == '.')
+			{
+				error_report(Single_output_device, smz->GetCurrentLineNumber(), smz->GetCurrentLine(),string{ch});
+				proceed(ch,eof); 								 	
+				nerrors++;
+				return false;
+			}
+			
 			device = nmz->cvtname(str);
 			deviceOut = -1; //Again, not very obvious...
 			
@@ -1121,13 +1170,6 @@ bool parser::createMonitor(char &ch)			//Function to set up monitor points on an
 		{
 			eof = smz->GetNextChar(ch);
 			
-		}
-		else if(ch == '.')
-		{
-			error_report(Single_output_device, smz->GetCurrentLineNumber(), smz->GetCurrentLine(),string{ch});
-			proceed(ch,eof); 								 	
-			nerrors++;
-			return false;
 		}
 		else
 		{
@@ -1286,13 +1328,13 @@ void parser::error_report(er error_type, int error_line, string current_line, st
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			break;
 		case Wrong_bracket_type :
-			cout << red << bbr << "Syntax Error 4:"  << bbr_off << def << " Expected “[” before declaring number of inputs for this device" << endl 
+			cout << red << bbr << "Syntax Error 4:"  << bbr_off << def << " Expected “[” or “]” before declaring number of inputs for this device" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			break;
 			
 		case Missing_bracket :
-			cout << red << bbr << "Syntax Error 5:"  << bbr_off << def << " Expected “[” when declaring this device" << endl 
+			cout << red << bbr << "Syntax Error 5:"  << bbr_off << def << " Expected “[” or “]” when declaring this device" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			break;
@@ -1383,9 +1425,11 @@ void parser::error_report(er error_type, int error_line, string current_line, st
 			
 			
 		case Abrupt_end :
-			cout << red << bbr << "Syntax Error 21:" << bbr_off << def << " Defintion File is incomplete! (There are missing sections)" << endl 
-			<< "Line " << error_line << ": " << current_line << endl
-			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			cout << red << bbr << "Syntax Error 21:" << bbr_off << def << " Definition File is incomplete! (There are missing sections)" << endl; 
+			break;
+			
+		case Empty_file :
+			cout << red << bbr << "Syntax Error 22:" << bbr_off << def << " Definition File is empty!" << endl; 
 			break;
 			
 		//Semantic Errors	
@@ -1396,7 +1440,7 @@ void parser::error_report(er error_type, int error_line, string current_line, st
 			break;
 			
 		case Invalid_gate_inputs :
-			cout << red << bbr << "Semantic Error 2:" << bbr_off << def << " Logic gates limited to 16 inputs" << endl 
+			cout << red << bbr << "Semantic Error 2:" << bbr_off << def << " Logic gates must have between 1 and 16 inputs" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			break;
@@ -1444,13 +1488,13 @@ void parser::error_report(er error_type, int error_line, string current_line, st
 			break;
 			
 		case Undefined_device :
-			cout << red << bbr << "Semantic Error 12:" << bbr_off << def << " Device " << error_string << " not defined" << endl 
+			cout << red << bbr << "Semantic Error 12:" << bbr_off << def << " Device \"" << error_string << "\" not defined" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			break;
 			
 		case Duplicate_device :
-			cout << red << bbr << "Semantic Error 13:" << bbr_off << def << " Duplicate device definition " << error_string << endl 
+			cout << red << bbr << "Semantic Error 13:" << bbr_off << def << " Duplicate device definition \"" << error_string << "\""<< endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			break;
@@ -1491,14 +1535,32 @@ void parser::error_report(er error_type, int error_line, string current_line, st
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			break;
 			
+		case Invalid_clock_input :
+			cout << red << bbr << "Semantic Error 20:" << bbr_off << def << " Clocks must have a positive frequency" << endl 
+			<< "Line " << error_line << ": " << current_line << endl
+			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
+			
+		case Nonexistent_pin :
+			cout << red << bbr << "Semantic Error 21:" << bbr_off << def << " Pin \"" << error_string << "\" does not exist" << endl 
+			<< "Line " << error_line << ": " << current_line << endl
+			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
+
+		case Monitor_input :
+			cout << red << bbr << "Semantic Error 22:" << bbr_off << def << " Inputs to devices cannot be monitored" << endl 
+			<< "Line " << error_line << ": " << current_line << endl
+			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
+			
 			
 		//Warnings	
 		case Unused_device :
 			cout << cyan << bbr << "Warning:" << bbr_off << def << " Unused device " << endl;
 			break;
 			
-		case Identifier_truncated :
-			cout << cyan << bbr << "Warning:" << bbr_off << def << " Device name " << error_string << " truncated to 8 characters" << endl 
+		case Long_identifier :
+			cout << cyan << bbr << "Warning:" << bbr_off << def << " Device name " << error_string << "\" is more than 8 characters long" << endl 
 			<< "Line " << error_line << ": " << current_line << endl;
 			break;
 			
@@ -1514,7 +1576,7 @@ void parser::error_report(er error_type, int error_line, string current_line, st
 			break;
 			
 		case Reused_connection :
-			cout << cyan << bbr << "Warning:" << bbr_off << def << " Reused device input " << endl;
+			cout << cyan << bbr << "Warning:" << bbr_off << def << " There are too many connections specified for the devices specified. A connection was ignored" << endl;
 			break;
 			
 			
@@ -1539,7 +1601,7 @@ void parser::proceed(char& cur_char, bool& eof) 	//Move to next semicolumn
  	}
 }
 
-/*
+
 // main function used for debugging
 int main()
 {
@@ -1557,4 +1619,4 @@ int main()
 	
 	return 0;
 }
-*/
+
