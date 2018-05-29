@@ -21,11 +21,11 @@ typedef struct 			//Device structure to store all defined devices to facilitate 
 	int input_number;
 	} dev;
 	
-typedef struct
-{
+typedef struct 			//Connections structure to check if the device input has already been used
+	{
 	name inDevice;
 	name inDevicePin;	
-}cons;
+	} cons;
 
 typedef enum {DATA, CLK, SET, CLEAR} dInputs;	//Possible inputs for Dtype
 
@@ -40,7 +40,7 @@ enum er {
 		CONNECTIONS_not_present, D_output_illegal, TO_missing,
 		no_number_after_I, no_I_before_number, Input_to_Input,
 		Input_to_Output, Output_to_Output, MONITOR_not_present,
-		Invalid_character, Abrupt_end,
+		Invalid_character, Abrupt_end, Empty_file,
 		
 		//Semantic Errors
 		Reserved_identifier = 101, Invalid_gate_inputs, XOR_inputs,
@@ -48,10 +48,11 @@ enum er {
 		Device_has_no_input, D_input_only, D_output_only,
 		Undefined_device, Duplicate_device, Muptiple_connections,
 		Unused_input, dot_missing, Invalid_D_Input, Invalid_D_Output,
-		Connection_overwrite,
+		Connection_overwrite, Invalid_clock_input, Nonexistent_pin,
+		Monitor_input,
 		
 		//Warnings
-		Unused_device = 201, Identifier_truncated, No_connections, 
+		Unused_device = 201, Long_identifier, No_connections, 
 		No_monitor_points, Reused_connection,
 		
 		//Internal Error
@@ -64,11 +65,11 @@ enum er {
 class parser {
 
 	private:
-		network* netz; 					// instantiations of various classes for parser to use.
+		network* netz; 						// instantiations of various classes for parser to use.
 		devices* dmz; 
 		monitor* mmz;
 		Scanner* smz;
-		names *nmz;
+		names* nmz;
 
 		vector<dev> devList;					//Internal store of created devices
 		vector<cons> conList;					//internal store of created connections
