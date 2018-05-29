@@ -321,6 +321,8 @@ void MyGLCanvas::ZoomHor(int zoom)
 	Render();
 }
 
+// Function to create a wxImage from the canvas contents and save it as a PNG image in a location defined by the user using a wxFileDialog
+
 void MyGLCanvas::save_canvas()
 {		
 	unsigned char *pixels;
@@ -328,19 +330,28 @@ void MyGLCanvas::save_canvas()
 
   	GetClientSize(&width, &height);
   	
+  	// Extract pixels from the canvas
+  	
   	pixels = (unsigned char *) malloc(3 * width * height);
   	glPixelStorei(GL_PACK_ALIGNMENT, 1);
   	glReadBuffer(GL_BACK_RIGHT);
   	glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
 
+	// This mirrors the unsigned char pixels to ensure that the resulting image is in the right orientation after the subsequent mirroring
+
 	mirror_char(pixels, width, height);
+	
   	save_im = new wxImage(width, height);
   	save_im->SetData(pixels, width, height, false);
+  	
+  	// Removing this mirror would cause a segmentation fault
+  	
   	save_im->Mirror(false);
   	
   	wxFileDialog *save_path_dialog = new wxFileDialog(this, wxFileSelectorPromptStr, wxEmptyString, wxEmptyString, wxFileSelectorDefaultWildcardStr, wxFD_SAVE);
   	save_path_dialog->ShowModal();
   	
+  	// Only attempt to save the image if a name is given by the user
   	
   	wxString save_path;
   	save_path.Printf("");
@@ -352,6 +363,7 @@ void MyGLCanvas::save_canvas()
   	}
 }
 
+// Mirror the image by flipping the unsigned char *
 
 void MyGLCanvas::mirror_char(unsigned char *pixels, int width, int height)
 {
@@ -546,10 +558,7 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
 	top_toolbar->AddTool(SAVE_TOOLBAR_ID, wxT("Save Circuit"), save_icon);
 	top_toolbar->Realize();
 	
-	//wxFilePickerCtrl *save_path = new wxFilePickerCtrl(this, wxID_ANY);
-	
-	toolbar_sizer->Add(top_toolbar, 0, wxEXPAND);
-	//toolbar_sizer->Add(save_path, 0, wxEXPAND);  	
+	toolbar_sizer->Add(top_toolbar, 0, wxEXPAND);	
   	
   	// Finalise application layout
   	
@@ -561,7 +570,9 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
   
   	frame_sizer->Add(left_canvas_sizer, 1, wxALIGN_TOP|wxEXPAND|wxALL, 5);
 
-  	frame_sizer->Add(right_button_window, 0, wxEXPAND|wxALIGN_TOP|wxALIGN_RIGHT|wxTOP|wxBOTTOM|wxRIGHT, 5); 
+  	frame_sizer->Add(right_button_window, 0, wxEXPAND|wxALIGN_TOP|wxALIGN_RIGHT|wxTOP|wxBOTTOM|wxRIGHT, 5);
+  	
+  	// Set the main sizer 
 
   	SetSizeHints(400, 400);
   	SetSizer(frame_sizer);
@@ -582,6 +593,8 @@ void MyFrame::OnAbout(wxCommandEvent &event)
   	
 }
 
+// Show/Hide the guidance grid in the canvas
+
 void MyFrame::ShowGrid(wxCommandEvent &event)
 {
 	canvas->ShowGrid(!show_grid);
@@ -595,6 +608,8 @@ void MyFrame::ShowGrid(wxCommandEvent &event)
 	}
 	show_grid = !show_grid;
 }
+
+// Show/Hide the right sizer containing the settings widgets
 
 void MyFrame::ShowSettings(wxCommandEvent &event)
 {
@@ -610,6 +625,8 @@ void MyFrame::ShowSettings(wxCommandEvent &event)
 	frame_sizer->Layout();
 	show_settings = !show_settings;
 }
+
+// Show/Hide the bottom dialog box showing the actions carried out by the user since the program was started
 
 void MyFrame::ShowDialog(wxCommandEvent &event)
 {
@@ -633,6 +650,8 @@ void MyFrame::OnSpin(wxSpinEvent &event)
   	print_action(cycle_num_str);
 }
 
+// Event handler for toggling switches on and off using a wxCheckListBox
+
 void MyFrame::SwitchList(wxCommandEvent &event)
 {
 
@@ -650,6 +669,8 @@ void MyFrame::SwitchList(wxCommandEvent &event)
 	print_action(switch_str);
 } 
 
+// Event handler for setting monitor points using a wxCheckListBox
+
 void MyFrame::MonitorList(wxCommandEvent &event)
 {
 	string monitor_str;
@@ -665,6 +686,8 @@ void MyFrame::MonitorList(wxCommandEvent &event)
 	}
 	print_action(monitor_str);
 }
+
+// Functions to zoom vertically and horizontally on the canvas controlled by two separate sliders
 
 void MyFrame::OnVertZoomRelease(wxCommandEvent &event)
 {
@@ -740,6 +763,8 @@ void MyFrame::OnContinueButton(wxCommandEvent &event)
 	print_action(continue_str);
 }
 
+// Event handler for saving the canvas contents which calls a function within the GLCanvas. The image is saved as a PNG
+
 void MyFrame::SaveCanvas(wxCommandEvent &event)
 {
 	canvas->save_canvas();
@@ -764,6 +789,8 @@ void MyFrame::runnetwork(int ncycles)
 	
 }
 
+// Function to print out the actions carried out by the user to the dialog box at the bottom of the application
+
 void MyFrame::print_action(string message)
 {
   	string action_message = to_string(action_num) + ": " + message; 
@@ -777,24 +804,3 @@ void MyFrame::print_action(string message)
 	
 	action_num = action_num+1;	
 }
-/*
-void MyFrame::mirror_char(unsigned char *pixels, int width, int height)
-{
-    int rows = height / 2;
-    int row_stride = width * 3;
-    unsigned char* temp_row = (unsigned char*)malloc(row_stride);
-
-    int source_offset, target_offset;
-
-    for (int rowIndex = 0; rowIndex < rows; rowIndex++)
-    {
-        source_offset = rowIndex * row_stride;
-        target_offset = (height - rowIndex - 1) * row_stride;
-
-        memcpy(temp_row, pixels + source_offset, row_stride);
-        memcpy(pixels + source_offset, pixels + target_offset, row_stride);
-        memcpy(pixels + target_offset, temp_row, row_stride);
-    }
-}
-*/
-
