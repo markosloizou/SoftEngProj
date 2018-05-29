@@ -8,24 +8,27 @@
 #define SIGNAL_HEIGHT 30
 #define SIGNAL_WIDTH 30
 #define SIGNAL_SPACE 20
+#define NAME_SPACE 60
 using namespace std;
 
 // MyGLCanvas ////////////////////////////////////////////////////////////////////////////////////
 
 BEGIN_EVENT_TABLE(MyGLCanvas, wxGLCanvas)
+	//EVT_LEFT_DCLICK(MyGLCanvas::dClick)
 	EVT_SIZE(MyGLCanvas::OnSize)
 	EVT_PAINT(MyGLCanvas::OnPaint)
-	//EVT_MOUSE_EVENTS(MyGLCanvas::OnMouse)
-	EVT_MOTION(MyGLCanvas::mouseMoved)
-	EVT_LEFT_DOWN(MyGLCanvas::mouseDown)
-	EVT_LEFT_UP(MyGLCanvas::mouseReleased)
-	EVT_RIGHT_DOWN(MyGLCanvas::rightClick)
-	EVT_LEAVE_WINDOW(MyGLCanvas::mouseLeftWindow)
+	EVT_MOUSE_EVENTS(MyGLCanvas::OnMouse)
+	//EVT_MOTION(MyGLCanvas::mouseMoved)
+	//EVT_LEFT_DOWN(MyGLCanvas::mouseDown)
+	//EVT_LEFT_UP(MyGLCanvas::mouseReleased)
+	//EVT_RIGHT_DOWN(MyGLCanvas::rightClick)
+	//EVT_LEAVE_WINDOW(MyGLCanvas::mouseLeftWindow)
 	//EVT_SIZE(MyGLCanvas::resized)
 	EVT_KEY_DOWN(MyGLCanvas::keyPressed)
 	EVT_KEY_UP(MyGLCanvas::keyReleased)
-	EVT_MOUSEWHEEL(MyGLCanvas::mouseWheelMoved)
+	//EVT_MOUSEWHEEL(MyGLCanvas::mouseWheelMoved)
 	//EVT_PAINT(MyGLCanvas::render)
+	
 END_EVENT_TABLE()
   
 int wxglcanvas_attrib_list[5] = {WX_GL_RGBA, WX_GL_DOUBLEBUFFER, WX_GL_DEPTH_SIZE, 16, 0};
@@ -62,6 +65,10 @@ MyGLCanvas::MyGLCanvas(wxWindow *parent, wxWindowID id, monitor* monitor_mod, na
 	end_signal = start_signal + max_number_to_print;
 	
 	showGrid = true;
+	isSmall = false;
+	
+	mouse_left = false;
+	mouse_right = false;
 }
 
 void MyGLCanvas::Render(wxString example_text, int cycles)
@@ -77,6 +84,8 @@ void MyGLCanvas::Render(wxString example_text, int cycles)
   int w, h;
   GetClientSize(&w, &h);
   
+  
+  
    max_number_to_print = floor(height/(signal_height + space_between_signals));
 
     end_signal = start_signal + max_number_to_print;
@@ -89,7 +98,11 @@ void MyGLCanvas::Render(wxString example_text, int cycles)
   }
   glClear(GL_COLOR_BUFFER_BIT);
   
+  
+  
   if(showGrid == true) printGrid();
+  if(mouse_left == true || mouse_right == true) printRectangle();
+  printTime();
 
   if ((cyclesdisplayed >= 0) && (mmz->moncount() > 0)) { // draw the first monitor signal, get trace from monitor class
 
@@ -128,13 +141,13 @@ void MyGLCanvas::Render(wxString example_text, int cycles)
     	
     	glColor3f(0.25, 0.25, 1.0);
     	glBegin(GL_LINE_STRIP);//draw line segments
-    	for(int j = 0; j < 100; j++)
+    	for(int j = startAt; j < 100; j++)
     	{
     		int l = 10.0;
     		if(signls[i][j] == 1) l += signal_height;
     		
-    		glVertex2f(signal_width*j+60.0, l+((i-start_signal)*(signal_height+space_between_signals))); 
-		  	glVertex2f(signal_width*j+60.0 + signal_width, l+((i-start_signal)*(signal_height+space_between_signals)));
+    		glVertex2f(signal_width*(j-startAt)+NAME_SPACE, l+((i-start_signal)*(signal_height+space_between_signals))); 
+		  	glVertex2f(signal_width*(j-startAt)+ NAME_SPACE + signal_width, l+((i-start_signal)*(signal_height+space_between_signals)));
 		}    
 		glEnd();	
 	}
@@ -161,8 +174,75 @@ void MyGLCanvas::Render(wxString example_text, int cycles)
   //for (i = 0; i < example_text.Len(); i++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, example_text[i]);
 
   // We've been drawing to the back buffer, flush the graphics pipeline and swap the back buffer to the front
+  
+  
+  
   glFlush();
   SwapBuffers();
+}
+
+void MyGLCanvas::printRectangle()
+{
+	GetClientSize(&width, &height);
+
+	float x1,y1,x2,y2;
+	
+	if(mouse_left)
+	{
+		x1 = 0;
+		y1 = 0;
+		x2 = 60.0;
+		y2 = height;
+	}
+	else
+	{
+		x1 = width - 60.0;
+		y1 = 0;
+		x2 = width;
+		y2 = height;
+	}
+	
+	
+	glColor4f(0.9,0.9 ,0.9,0.25); // set low opacity for transparency
+	glRectf(x1,y1,x2,y2);
+	
+	glColor4f(0.945,0.561,0.408,0.25);
+	if(mouse_left)
+	{
+		x1 = 40;
+		y1 = height / 2 - 5;
+		x2 = 25;
+		y2 = height/2 + 5;
+		
+		glRectf(x1,y1,x2,y2);
+		
+		glBegin(GL_TRIANGLES);
+		
+		glVertex2f(x2, y1-5);
+		glVertex2f(x2, y2+5);
+		glVertex2f(x2-10,height/2);
+		
+		glEnd();
+		
+	}
+	else
+	{
+		x1 = width - 40;
+		y1 = height / 2 - 5;
+		x2 = width - 25;
+		y2 = height/2 + 5;
+		
+		glRectf(x1,y1,x2,y2);
+		
+		glBegin(GL_TRIANGLES);
+		
+		glVertex2f(x2, y1-5);
+		glVertex2f(x2, y2+5);
+		glVertex2f(x2+10,height/2);
+		
+		glEnd();
+	}
+	
 }
 
 void MyGLCanvas::generateSignals()
@@ -223,48 +303,27 @@ void MyGLCanvas::OnSize(wxSizeEvent& event)
   
 }
 
-/*
-void MyGLCanvas::OnMouse(wxMouseEvent& event)
-  // Event handler for mouse events inside the GL canvas
-{
-  wxString text;
-  int w, h;;
-  static int last_x, last_y;
 
-  GetClientSize(&w, &h);
-  if (event.ButtonDown()) {
-    last_x = event.m_x;
-    last_y = event.m_y;
-    text.Printf("Mouse button %d pressed at %d %d", event.GetButton(), event.m_x, h-event.m_y);
-  }
-  if (event.ButtonUp()) text.Printf("Mouse button %d released at %d %d", event.GetButton(), event.m_x, h-event.m_y);
-  if (event.Dragging()) {
-    pan_x += event.m_x - last_x;
-    pan_y -= event.m_y - last_y;
-    last_x = event.m_x;
-    last_y = event.m_y;
-    init = false;
-    text.Printf("Mouse dragged to %d %d, pan now %d %d", event.m_x, h-event.m_y, pan_x, pan_y);
-  }
-  if (event.Leaving()) text.Printf("Mouse left window at %d %d", event.m_x, h-event.m_y);
-  if (event.GetWheelRotation() < 0) {
-    zoom = zoom * (1.0 - (double)event.GetWheelRotation()/(20*event.GetWheelDelta()));
-    init = false;
-    text.Printf("Negative mouse wheel rotation, zoom now %f", zoom);
-  }
-  if (event.GetWheelRotation() > 0) {
-    zoom = zoom / (1.0 + (double)event.GetWheelRotation()/(20*event.GetWheelDelta()));
-    init = false;
-    text.Printf("Positive mouse wheel rotation, zoom now %f", zoom);
-  }
-
-  if (event.GetWheelRotation() || event.ButtonDown() || event.ButtonUp() || event.Dragging() || event.Leaving()) Render(text);
-}
-*/
 
 void MyGLCanvas::ShowGrid(bool show)
 {
 	showGrid = show;
+}
+
+void MyGLCanvas::printTime()
+{
+	glColor3f(240.0/255.0, 12.0/255.0, 39.0/255.0); //light gray color
+	for(int i = startAt; i < floor(((float)width-60.0)/signal_width)+1+startAt; i ++)
+	{
+		if(isSmall == true && (i%5) != 0) continue; //continue to next cycle if the size is small and i is not a multiple of 5
+		
+		if(isSmall) glRasterPos2f(NAME_SPACE + (i-startAt)*signal_width - signal_width, height - 10);
+		else glRasterPos2f(NAME_SPACE + (i-startAt)*signal_width - signal_width/2, height - 10);
+		
+		wxString name;
+		name.Printf( "%d", i);
+		for (int k = 0; k < name.Len(); k++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, name[k]);
+	}
 }
 
 void MyGLCanvas::printGrid()
@@ -273,13 +332,9 @@ void MyGLCanvas::printGrid()
 	GetClientSize(&width, &height);
 	for(int i = 0; i < floor(((float)width-60.0)/signal_width)+1; i ++)
 	{
-		glColor3f(240.0/255.0, 12.0/255.0, 39.0/255.0); //light gray color
-		glRasterPos2f(60.0 + i*signal_width - signal_width/2, height - 10);
-    	wxString name;
-    	name.Printf( "%d", i);
-    	for (int k = 0; k < name.Len(); k++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, name[k]);
-    	
+		
     	glColor3f(0.90, 0.90, 0.90); //light gray color
+    	if( i%5 == 0 && isSmall == true) glColor3f(0.5, 0.5, 0.5);
 		//draw time ticks
 		glBegin(GL_LINE_STRIP);//draw line segments
 		glVertex2f(60.0 + i*signal_width,0);
@@ -299,27 +354,6 @@ void MyGLCanvas::printGrid()
 	
 }
 
-void MyGLCanvas::ZoomVert(int zoom)
-{
-	float scale;
-	scale = (float)zoom/100.0;
-	signal_height = SIGNAL_HEIGHT*scale;
-	space_between_signals = SIGNAL_SPACE*scale;
-	wxString str;
-	str.Printf("");
-	Render();
-}
-
-void MyGLCanvas::ZoomHor(int zoom)
-{
-	float scale;
-	scale = (float)zoom/100.0;
-	signal_width = SIGNAL_WIDTH*scale;
-
-	wxString str;
-	str.Printf("");
-	Render();
-}
 
 // Function to create a wxImage from the canvas contents and save it as a PNG image in a location defined by the user using a wxFileDialog
 
@@ -387,19 +421,244 @@ void MyGLCanvas::mirror_char(unsigned char *pixels, int width, int height)
 }
 
 
-// some useful events to use
-void MyGLCanvas::mouseMoved(wxMouseEvent& event) {}
-void MyGLCanvas::mouseDown(wxMouseEvent& event) {}
-
-void MyGLCanvas::mouseWheelMoved(wxMouseEvent& event) 
+void MyGLCanvas::ZoomVert(int zoom)
 {
+	float scale;
+	scale = (float)zoom/100.0;
+	signal_height = SIGNAL_HEIGHT*scale;
+	space_between_signals = SIGNAL_SPACE*scale;
+	wxString str;
+	str.Printf("");
+	
+	GetClientSize(&width, &height);
+ 	 max_number_to_print = floor((float)height/(signal_height + space_between_signals));
+  	//cout << "max to print: " << max_number_to_print << endl;
+  	end_signal = start_signal + max_number_to_print;
+  	
+  	if(start_signal < 0) 
+	{
+		start_signal = 0;
+		end_signal = start_signal+max_number_to_print;
+	}
+	if(end_signal > 100)
+	{
+		end_signal = 100;
+		start_signal = end_signal-max_number_to_print;
+	}
+  
+	Render();
+}
+
+void MyGLCanvas::ZoomHor(int zoom)
+{
+		
+	
+	float scale;
+	scale = (float)zoom/100.0;
+	signal_width = SIGNAL_WIDTH*scale;
+	
+	if(scale <= 0.6)
+	{
+		isSmall = true;
+	}
+	else
+	{
+		isSmall = false;
+	}
+	
+	wxString str;
+	str.Printf("");
+	
+	
+	Render();
+}
+
+
+
+
+void MyGLCanvas::OnMouse(wxMouseEvent& event)
+  // Event handler for mouse events inside the GL canvas
+{
+	wxString str;
+	str.Printf("");	
+	int w, h;;
+	static int last_x, last_y;
+
+	bool dc = event.LeftDClick();
+	if(dc)
+	{
+		if(mouse_right)
+		{
+			startAt+=9;
+		}
+		if(mouse_left)
+		{
+			startAt-=9;
+		}
+	}
+
+	bool sc = event.LeftDown();
+	if(sc)
+	{
+		if(mouse_right)
+		{
+			startAt++;
+		}
+		if(mouse_left)
+		{
+			startAt--;
+		}
+	}
+
+	
+
+	
+	if(startAt<0) startAt = 0;
+    else if(startAt > SignalLength) startAt = SignalLength;
+	
+	
 	int r = event.GetWheelRotation();
-	if(r<0) 
+	
+	if(r>0) 
 	{
 		end_signal += 1;
 		start_signal += 1;
 	}
-	else
+	else if(r < 0)
+	{
+		 end_signal -=1;
+		 start_signal -=1;
+	 }
+	
+	
+	if(start_signal < 0) 
+	{
+		start_signal = 0;
+		end_signal = start_signal+max_number_to_print;
+	}
+	if(end_signal > 100)
+	{
+		end_signal = 100;
+		start_signal = end_signal-max_number_to_print;
+	}
+	
+	bool mv = event.Moving();
+	 
+	if(mv)
+	{
+		static int last_x, last_y;
+	 
+		last_x = event.m_x;
+		last_y = event.m_y;
+		
+		if(last_x < width * 0.15) 
+		{
+			mouse_left = true;
+			mouse_right = false;
+			Render(str,-1);
+		}
+		else if(last_x > width*0.85) 
+		{
+			mouse_left = false;
+			mouse_right = true;
+			Render(str, -1);
+		}
+		else
+		{
+			mouse_left = false;
+			mouse_right = false;
+			Render(str,-1);
+		}
+	}
+	
+	 if(event.Leaving())
+	 {
+	 	mouse_left = false;
+		mouse_right = false;
+	 }
+	
+	 Render(str,-1);
+/*
+  GetClientSize(&w, &h);
+  if (event.ButtonDown()) {
+    last_x = event.m_x;
+    last_y = event.m_y;
+    text.Printf("Mouse button %d pressed at %d %d", event.GetButton(), event.m_x, h-event.m_y);
+  }
+  if (event.ButtonUp()) text.Printf("Mouse button %d released at %d %d", event.GetButton(), event.m_x, h-event.m_y);
+  if (event.Dragging()) {
+    pan_x += event.m_x - last_x;
+    pan_y -= event.m_y - last_y;
+    last_x = event.m_x;
+    last_y = event.m_y;
+    init = false;
+    text.Printf("Mouse dragged to %d %d, pan now %d %d", event.m_x, h-event.m_y, pan_x, pan_y);
+  }
+  if (event.Leaving()) text.Printf("Mouse left window at %d %d", event.m_x, h-event.m_y);
+  if (event.GetWheelRotation() < 0) {
+    zoom = zoom * (1.0 - (double)event.GetWheelRotation()/(20*event.GetWheelDelta()));
+    init = false;
+    text.Printf("Negative mouse wheel rotation, zoom now %f", zoom);
+  }
+  if (event.GetWheelRotation() > 0) {
+    zoom = zoom / (1.0 + (double)event.GetWheelRotation()/(20*event.GetWheelDelta()));
+    init = false;
+    text.Printf("Positive mouse wheel rotation, zoom now %f", zoom);
+  }
+
+  if (event.GetWheelRotation() || event.ButtonDown() || event.ButtonUp() || event.Dragging() || event.Leaving()) Render(text);*/
+}
+
+/*
+
+// some useful events to use
+void MyGLCanvas::mouseMoved(wxMouseEvent& event) 
+{
+	wxString str;
+	str.Printf("");	
+	
+	GetClientSize(&width, &height);
+	
+	static int last_x, last_y;
+	 
+	last_x = event.m_x;
+    last_y = event.m_y;
+    
+    if(last_x < width * 0.15) 
+    {
+    	mouse_left = true;
+    	mouse_right = false;
+    	Render(str,-1);
+	}
+    else if(last_x > width*0.85) 
+    {
+    	mouse_left = false;
+    	mouse_right = true;
+    	Render(str, -1);
+	}
+    else
+    {
+    	mouse_left = false;
+    	mouse_right = false;
+    	Render(str,-1);
+    }
+}
+void MyGLCanvas::mouseDown(wxMouseEvent& event) 
+{
+
+}
+
+
+
+void MyGLCanvas::mouseWheelMoved(wxMouseEvent& event) 
+{
+	int r = event.GetWheelRotation();
+	if(r>0) 
+	{
+		end_signal += 1;
+		start_signal += 1;
+	}
+	else if(r > 0)
 	{
 		 end_signal -=1;
 		 start_signal -=1;
@@ -422,12 +681,43 @@ void MyGLCanvas::mouseWheelMoved(wxMouseEvent& event)
 	Render("Mouse Wheel Event", 20);
 }
 
-void MyGLCanvas::mouseReleased(wxMouseEvent& event) {}
+void MyGLCanvas::mouseReleased(wxMouseEvent& event) {
+	wxString str;
+	str.Printf("");	
+	bool dc = event.LeftDClick();
+	if(dc)
+	{
+		if(mouse_right)
+		{
+			startAt+=10;
+		}
+		if(mouse_left)
+		{
+			startAt-=10;
+		}
+	}
+	else
+	{
+		if(mouse_right)
+		{
+			startAt++;
+		}
+		if(mouse_left)
+		{
+			startAt--;
+		}
+	}
+    
+    if(startAt<0) startAt = 0;
+    else if(startAt > SignalLength) startAt = SignalLength;
+    
+    Render(str,-1);
+}
 void MyGLCanvas::rightClick(wxMouseEvent& event) {}
+*/
 void MyGLCanvas::mouseLeftWindow(wxMouseEvent& event) {}
 void MyGLCanvas::keyPressed(wxKeyEvent& event) {}
 void MyGLCanvas::keyReleased(wxKeyEvent& event) {}
-
 // MyFrame ///////////////////////////////////////////////////////////////////////////////////////
 
 

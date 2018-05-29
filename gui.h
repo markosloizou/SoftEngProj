@@ -120,8 +120,8 @@ class MyGLCanvas: public wxGLCanvas
   int pan_x;                         // the current x pan
   int pan_y;                         // the current y pan
   double zoom;                       // the current zoom
-  monitor *mmz;                      // pointer to monitor class, used to extract signal traces
   int cyclesdisplayed;               // how many simulation cycles have been displayed
+  monitor *mmz;                      // pointer to monitor class, used to extract signal traces
   names *nmz;                        // pointer to names class, used to extract signal names
   void InitGL();                     // function to initialise OpenGL context
   void OnSize(wxSizeEvent& event);   // event handler for when canvas is resized
@@ -129,7 +129,9 @@ class MyGLCanvas: public wxGLCanvas
   void OnMouse(wxMouseEvent& event); // event handler for mouse events inside canvas
   
   void printGrid();
+  void printTime();
   void maxNumber();
+
   
   // events
 	void mouseMoved(wxMouseEvent& event);
@@ -140,8 +142,9 @@ class MyGLCanvas: public wxGLCanvas
 	void mouseLeftWindow(wxMouseEvent& event);
 	void keyPressed(wxKeyEvent& event);
 	void keyReleased(wxKeyEvent& event);
-	
+	void dClick(wxKeyEvent& event);
 	int signals = 100;
+	int SignalLength = 100;
 	vector< vector<int> > signls; 
 	void generateSignals();
 	
@@ -164,9 +167,23 @@ class MyGLCanvas: public wxGLCanvas
 	float space_between_signals = 20.0;
 	
 	int cycles;
+	bool isSmall;
+	
+	int startAt = 0;
+	int endAt = 10; 
+	
+	//for moving the start and end position of the signal
+	bool mouse_left;
+	bool mouse_right;
+	
+	void printRectangle();
+	
+	
 
+	
   DECLARE_EVENT_TABLE()
 };
+    
     
 #endif /* gui_h */
 
