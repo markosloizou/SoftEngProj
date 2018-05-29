@@ -2,35 +2,36 @@
 #include <iomanip>
 #include "parser.h"
 
+
 using namespace std;
 
 namespace Color { 				//Colour namespace for error printing
     enum Code {
-    	FG_BLACK		= 30,	//Foreground colors
-        FG_RED      	= 31,
-        FG_GREEN    	= 32,
+    	FG_BLACK		= 30,		//Foreground colors
+        FG_RED      		= 31,
+        FG_GREEN    		= 32,
         FG_YELLOW 		= 33,
-        FG_BLUE     	= 34,
+        FG_BLUE     		= 34,
         FG_MAGENTA		= 35,
         FG_CYAN 		= 36,
         FG_WHITE		= 37,
         FG_DEFAULT		= 39,
-        BG_BLACK		= 40,	//Background colors
-        BG_RED      	= 41,
-        BG_GREEN    	= 42,
+        BG_BLACK		= 40,		//Background colors
+        BG_RED      		= 41,
+        BG_GREEN    		= 42,
         BG_YELLOW 		= 43,
-        BG_BLUE     	= 44,
+        BG_BLUE     		= 44,
         BG_MAGENTA		= 45,
         BG_CYAN 		= 46,
         BG_WHITE		= 47,
         BG_DEFAULT		= 49,
-        RESET			= 0,	//Resets to original state
-        BOLD_AND_BRIGHT	= 1,	//combination of bold and bright letters
+        RESET			= 0,		//Resets to original state
+        BOLD_AND_BRIGHT		= 1,		//Combination of bold and bright letters
         UNDERLINE		= 4,
-        INVERSE			= 7,	//swaps FG and BG colors
-        BOLD_AND_BRIGHT_OFF = 21,
-        UNDERLINE_OFF 	= 24,
-        INVERSE_OFF 	= 27
+        INVERSE			= 7,		//Swaps FG and BG colors
+        BOLD_AND_BRIGHT_OFF 	= 21,
+        UNDERLINE_OFF 		= 24,
+        INVERSE_OFF 		= 27
     };
     class Modifier {
         Code code;
@@ -45,80 +46,1188 @@ namespace Color { 				//Colour namespace for error printing
 
 bool parser::readin (void)
 {
-  bool neof = true; //Not End Of File - Becomes false when end of file is reached
-  char cur_char;
-  string str;
-  int number;
-  block current_block;
+  bool eof = false; 	//End Of File - Becomes true when end of file is reached
+  char cur_char;	//Stores current character
+  string str;		//Stores current string
+  int number;		//Stores current number
   
-  neof = smz->GetNextChar(cur_char);
-  while(neof == false)
+  cout << endl << "Loading Device Definition File..." << endl << endl;
+  
+  eof = smz->GetNextChar(cur_char);							//Get First Character
+  if(isalpha(cur_char)) 
   {
-	  if(isalpha(cur_char)) 
-	  {
-		  neof = smz->GetNextString(str, cur_char); 
-		  cout << "str: " <<str << "  char: " << cur_char <<endl;//returns string that starts with current character and moves to the next non-space character
-	  }
-	  else if(isdigit(cur_char)) neof = smz->GetNextNumber(number, cur_char); //returns string that cointains the next number segment
-	  else if(cur_char == '(') //Clock input
+	  eof = smz->GetNextString(str, cur_char); 					//Get First String
+	  
+	  if(str == "DEVICES")								//All definition files must start with declaration for Phase I
 		{
-		cout << "((((((" << endl;
-		neof = smz->GetNextChar(cur_char); //Obtain next character
-		if(isdigit(cur_char)) neof = smz->GetNextNumber(number, cur_char); //Obtain number
-		else 
-			{
-			cout << "Nooo" << endl;
-			error_report(input_no, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string{'('}); //Expected Number
-			proceed(cur_char,neof); //Proceed to next semicolumn
-			}
-		  
-		neof = smz->GetNextChar(cur_char); //Get next character to see if bracket closes
-		if(cur_char != ')')
-			{
-			error_report(brack_miss, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), "("); //Expected closing brackets
-			proceed(cur_char,neof); //Proceed to next semicolumn
-			}
+			current_phase = devi;						//We are in Phase I
+			if (debugging) cout << "Phase I: Define Devices" << endl << endl;
 		}
-	  else if(cur_char == '[') //Gate input
+	  else 
 		{
-		neof = smz->GetNextChar(cur_char);
-		if(isdigit(cur_char)) neof = smz->GetNextNumber(number, cur_char);
-		else
-			{
-			error_report(input_no, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), "[");
-			proceed(cur_char,neof);
-			}
+			error_report(DEVICES_not_present, smz->GetCurrentLineNumber(), smz->GetCurrentLine()," "); 		//Expected DEVICES at start of file
+			proceed(cur_char,eof); 								 			//Proceed to next semicolumn
+			nerrors++; 												//Accumulate number of errors
+		}	
+  }
+  
+  while(eof == false)
+  {
+
+  	switch(current_phase)
+  	{
+  		case devi:						//Phase I
+  			defineDevice(cur_char);				//Master function for Phase I
+  			if(cur_char == ';')				
+  			{
+  				eof = smz -> GetNextChar(cur_char);	//Move to next device definition
+  			} 
+  			break;
+  			
+  		case conn:						//Phase II
+  			defineConnections(cur_char);				//Master function for Phase II
+  			if(cur_char == ';')				
+  			{
+  				eof = smz -> GetNextChar(cur_char);	//Move to next connection definition
+  			} 
+  			break;
+  			
+		case mon:						//Phase III
+			createMonitor(cur_char);			//Master function for Phase III
+			if(cur_char == ';')				
+  			{
+  				eof = smz -> GetNextChar(cur_char);	//Move to next monitor definition
+  			} 
+			break;
+			
+		case finito:
+			eof = true;					//Ignore anything written after END has been declared
+			end_of_file(nerrors);				//Phase IV prelude		
+			break;
 		
-		neof = smz->GetNextChar(cur_char);
-		if(cur_char != ']') 
-			{
-			error_report(brack_miss, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), "[");
-			proceed(cur_char,neof);
-			}
-		}
-	  else if(cur_char == ';') //Complete circuit component defined. Build network
-	  {
-		/*  if(block == devices) //Define device
-		  {
-			  cout << 'Connections Reached' << endl;//Define Device
-		  }
-		  if(block == connections) //Define connections
-		  {
-			  cout << 'Connections Reached' << endl;//Define Connections
-		  }
-		  if(block == monitor) //Define monitor points
-		  {
-			  cout << 'Monitor Reached' << endl;//Define Monitor Points
-		  }*/
-		  neof = smz->GetNextChar(cur_char);
-	  }
-	  else neof = smz->GetNextChar(cur_char);
-	  cout << cur_char << endl;
+		default:
+			error_report(Internal_error, smz->GetCurrentLineNumber(), smz->GetCurrentLine()," "); 		//We shouldn't be here
+			proceed(cur_char,eof); 								 	
+			nerrors++; 
+			break;
+	}
   }
 }
 
-parser::parser (network* network_mod, devices* devices_mod,
-		monitor* monitor_mod, Scanner* scanner_mod)
+bool parser::defineDevice(char &ch)					//Function to read in device refinitions. Returns true if all ok
+{
+	string str;
+	eof = false;
+	while(eof == false)
+	{
+
+		if(isalpha(ch))
+		{
+			
+			eof = smz->GetNextString(str, ch);		//Obtains the string str that starts with the character ch that we are currently on
+			
+			//Check for keywords that will advance program to next Phase
+			if(str == "CONNECTIONS")
+			{				
+				current_phase = conn;
+				if (debugging) cout << endl << "Phase II: Define Connections" << endl << endl;				//Move to Phase II
+				break;
+			}
+			else if(str == "MONITOR")											
+			{
+				if(ConnectionsRequired() != 0)
+				{
+					error_report(CONNECTIONS_not_present, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); //Need CONNECTIONS before MONITOR points defined
+					nerrors++;
+				}
+				current_phase = mon;
+				break;
+			}
+			
+			else if(str == "DEVICES")
+			{
+				error_report(Nonexistent_device_type, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str);		//We don't need this twice
+				nerrors++;
+				break;
+			}
+			else if(str == "END")
+			{	
+				error_report(No_connections, smz->GetCurrentLineNumber(), smz->GetCurrentLine()," ");
+				error_report(No_monitor_points, smz->GetCurrentLineNumber(), smz->GetCurrentLine()," ");
+				current_phase = finito;
+				break;
+			}
+			
+			devicekind kind = isDeviceType((namestring)str);								//Detect what device we want to define
+			if(kind != baddevice)
+			{
+				readDevice(ch, kind);											//Define the device in other function
+			}
+			else
+			{
+				if(smz->GetCharPosition() == 0)
+				{
+					error_report(Nonexistent_device_type, smz->GetCurrentLineNumber(), smz->GetPreviousLine(), str); //Device type is illegal	
+				}
+				else
+				{
+					error_report(Nonexistent_device_type, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str);
+				}
+				proceed(ch,eof); 								 		
+				nerrors++; 												
+			}
+			
+		}
+		else if(ch == ';') break;
+		else if(ch == ',') continue;
+		else
+		{
+			error_report(Nonexistent_device_type, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 	//All devices start with a letter	
+			proceed(ch,eof);
+			nerrors++;
+		}
+	}
+
+	if(eof == true)
+	{
+		error_report(Abrupt_end, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str);
+		current_phase = finito;
+		return false;
+	}
+}
+
+devicekind parser::isDeviceType(namestring str) 	//Translates Device Defintion to internal representation
+{
+	if(str == "SWITCH") 		return aswitch;
+	if(str == "CLOCK")		return aclock;
+	if(str == "AND")		return andgate;
+	if(str == "NAND")		return nandgate;
+	if(str == "OR")			return orgate;
+	if(str == "NOR")		return norgate;
+	if(str == "XOR")		return xorgate;
+	if(str == "DTYPE")		return dtype;
+	else   				return baddevice;
+}
+
+string parser::isDeviceType(int index)			//Translates internal representation of device to string for display
+{
+	if(index == 0)			return "SWITCH";
+	if(index == 1)			return "CLOCK";
+	if(index == 2)			return "AND";
+	if(index == 3)			return "NAND";
+	if(index == 4)			return "OR";
+	if(index == 5)			return "NOR";
+	if(index == 6)			return "XOR";
+	if(index == 7)			return "DTYPE";
+      /*if(index == 8)			return "DATA";		//These are just for reference
+	if(index == 9)			return "CLK";
+	if(index == 10)			return "SET";
+	if(index == 11)			return "CLEAR";
+	if(index == 12)			return "Q";
+	if(index == 13)			return "QBAR";*/
+	else				return "ERROR";
+}
+
+bool parser::readDevice(char& ch,devicekind kind)		//Function to sort devices according to type then call correct function to create device
+{
+	while(eof == false)
+	{
+		if(kind == aswitch)
+		{
+				readSwitch(ch);				//Define a switch in other function
+			if(ch == ';')   				//All switches have been defined
+			{	
+				eof = smz-> GetNextChar(ch); 		//Get next non-space character and store it in ch
+				break;
+			}
+			else if(ch == ',') 				//More switches to be defined
+			{
+				eof = smz->GetNextChar(ch);
+				continue;
+			}
+			else if(isalnum(ch))
+			{
+				error_report(semicolumn, smz->GetCurrentLineNumber()-1, smz->GetPreviousLine(), string(1, '\n'));
+				proceed(ch,eof);
+				nerrors++;
+				break;
+			}
+			else
+			{
+				error_report(Invalid_character, smz->GetCurrentLineNumber()-1, smz->GetCurrentLine(), string(1, ch)); 	
+				proceed(ch,eof);
+				nerrors++;
+				break;
+			}
+		}
+		else if(kind  == xorgate || kind == dtype)
+		{
+			readFixedDevice(ch, kind); 	//Define devices with fixed inputs and outputs in other function
+			if(ch == ';')			//All XORs or Dtypes defined
+			{	
+				eof = smz-> GetNextChar(ch);
+				break;
+			}
+			else if(ch == ',')		//More to be defined
+			{
+				eof = smz->GetNextChar(ch);
+				continue;
+			}
+			else if(isalnum(ch))
+			{
+				error_report(semicolumn, smz->GetCurrentLineNumber()-1, smz->GetPreviousLine(), string(1, '\n')); 	
+				proceed(ch,eof);
+				nerrors++;
+				break;
+			}
+			else
+			{
+				error_report(Invalid_character, smz->GetCurrentLineNumber()-1, smz->GetCurrentLine(), string(1, ch)); 	
+				proceed(ch,eof);
+				nerrors++;
+				break;
+			}
+		}
+		else
+		{
+			readVariableDevice(ch, kind);	//Define Gates or clocks in other function
+			if(ch == ';')			//All Gates or clocks defined
+			{	
+				eof = smz-> GetNextChar(ch);
+				break;
+			}
+			else if(ch == ',')		//More to be defined
+			{
+				eof = smz->GetNextChar(ch);
+				continue;
+			}
+			else if(isalnum(ch))
+			{
+				error_report(semicolumn, smz->GetCurrentLineNumber()-1, smz->GetPreviousLine(), string(1, '\n')); 	
+				proceed(ch,eof);
+				nerrors++;
+				break;
+			}
+			else
+			{
+				error_report(Invalid_character, smz->GetCurrentLineNumber()-1, smz->GetCurrentLine(), string(1, ch)); 	
+				proceed(ch,eof);
+				nerrors++;
+				break;
+			}
+		}
+	}
+	
+	if(eof == true)
+	{
+		current_phase = finito;
+		error_report(Abrupt_end, smz->GetCurrentLineNumber()-1, smz->GetCurrentLine(), string(1, ch)); //End of file reached unexpectedly
+		return false;
+	}
+}
+
+bool parser::readSwitch(char &ch)			//Function that defines Switches
+{
+	string str;
+	
+	if(isalpha(ch))
+	{
+		eof = smz->GetNextString(str, ch);
+		
+		if(ch == '=')
+		{
+			eof = smz -> GetNextChar(ch);
+			
+			if(ch == '0' || ch == '1')						//Check that switch structure is obeyed
+			{
+				name id;
+		
+				if(nmz->cvtname(str) == blankname)
+				{
+					id = nmz->lookup((namestring) str);
+				}
+				else
+				{
+					if(str == "CLOCK" || str == "AND" || str == "NAND" || str == "OR" || str == "NOR" || str == "XOR" || str == "DTYPE" || str == "DATA" || str == "CLK" || str == "SET" || str == "CLEAR" || str == "Q" || str == "QBAR" || str == "DEVICES" || str == "CONNECTIONS" || str == "MONITOR" || str == "END")
+					{
+						error_report(Reserved_identifier, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 	//Can't name a device like this
+						proceed(ch,eof);										//since this can cause problems later
+						nerrors++;
+						return false;	
+					}
+					else
+					{
+						error_report(Duplicate_device, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 	//Can't name two devices the same thing
+						proceed(ch,eof);
+						nerrors++;
+						return false;
+					}
+				}
+				
+				int setting = 0;
+				if(ch == '1') setting = 1;
+				bool ok;
+				
+				dmz->makedevice(aswitch, id, setting, ok);			//Create switch internally
+			  	
+			  	if(!ok)
+			  	{
+			  		error_report(Internal_error, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 	//We should not be here
+					proceed(ch,eof);
+					nerrors++;
+			  	} 
+			  	else
+			  	{
+			  		eof = smz->GetNextChar(ch);
+			  		
+			  		dev d;
+			  		d.id = id;
+			  		d.name = str;
+			  		d.kind = aswitch;
+			  		d.input_number = 0;
+			  		devList.push_back(d);		//Store devices internally in custom data structure for later use (determine if there are unused devices etc)
+			  		
+			  		if(setting == 0)
+			  		{
+			  			if (debugging) cout << "Created OFF SWITCH with name " << str << endl;	
+			  		}
+			  		else
+			  		{
+			  			if (debugging) cout << "Created ON SWITCH with name " << str << endl;
+			  		}
+				}
+			}
+			else
+			{
+				error_report(Invalid_switch_position, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch));  	//Switch must be either ON or OFF
+				proceed(ch,eof);
+				nerrors++;
+			}
+		}
+		else
+		{
+			error_report(Invalid_switch_definition, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 		//Switch definition must follow EBNF structure
+			proceed(ch,eof);
+			nerrors++;
+		}
+	}
+	else
+	{
+		error_report(Illegal_identifier, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 				//Name must start with a letter
+		proceed(ch,eof);
+		nerrors++;
+		return false;
+	}
+}
+
+bool parser::readFixedDevice(char &ch, devicekind kind)			//Function that defines XOR and Dtype
+{
+	string str;
+	
+	if(isalpha(ch))
+	{
+		eof = smz -> GetNextString(str,ch);
+		
+		name id;
+		
+		if(nmz->cvtname(str) == blankname)
+		{
+			id = nmz->lookup((namestring) str);
+		}
+		else
+		{
+			if(str == "CLOCK" || str == "AND" || str == "NAND" || str == "OR" || str == "NOR" || str == "XOR" || str == "DTYPE" || str == "DATA" || str == "CLK" || str == "SET" || str == "CLEAR" || str == "Q" || str == "QBAR" || str == "DEVICES" || str == "CONNECTIONS" || str == "MONITOR" || str == "END")
+			{
+				error_report(Reserved_identifier, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 
+				proceed(ch,eof);
+				nerrors++;
+				return false;	
+			}
+			else
+			{
+				error_report(Duplicate_device, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 
+				proceed(ch,eof);
+				nerrors++;
+				return false;
+			}
+		}
+
+		int setting;	//Create dummy variables to pass to devices.cc (they are ignored for this devices)
+		bool ok;
+		
+		if(ch == '[' && kind == xorgate)		//Since XOR gates only have 2 inputs, allow them to be defined as XOR X1[2]; as well
+		{
+			eof = smz->GetNextChar(ch);
+			
+			if(ch == '2')
+			{
+				eof = smz->GetNextChar(ch);
+				
+				if(ch == ']')
+				{
+					eof = smz->GetNextChar(ch);
+				}
+				else{
+					error_report(Missing_bracket, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+					proceed(ch,eof);
+					nerrors++;
+					return false;
+				}
+			}
+			else
+			{
+				error_report(XOR_inputs, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+				proceed(ch,eof);
+				nerrors++;
+				return false;
+			}
+		}
+		
+		dmz->makedevice(kind,id,setting,ok);				//if all is well create device internally
+		
+		if(!ok)
+		{
+			error_report(Internal_error, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+			proceed(ch,eof);
+			nerrors++;
+			return false;
+		}
+		else
+		{
+			dev d;
+			d.id = id;
+			d.kind = kind;
+			d.name = str;
+			if(kind == dtype)
+			{
+				d.input_number = 4;
+			}
+			else
+			{
+				d.input_number = 2;
+			}
+			
+			devList.push_back(d);				//Store devices internally in custom data structure for later use (determine if there are unused devices)
+			
+			if (debugging) cout << "Created " << isDeviceType(kind) << " with name " << str << endl; //Device creation report
+			
+			return true;
+		}
+	}
+	else
+	{
+		error_report(Illegal_identifier, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+		proceed(ch,eof);
+		nerrors++;
+		return false;
+	}
+}
+
+bool parser::readVariableDevice(char& ch, devicekind kind)			//Function that defines logic gates and clocks
+{
+	string str;
+	int number;
+	name id;
+	bool ok; 								//Checks that device has been successfully created internally in devices.cc
+
+	if(isalpha(ch))								//if next character is alphabetic then we have a valid identifier
+	{
+
+		eof = smz -> GetNextString(str,ch);
+		
+		if(ch != '[') 							//Number of inputs must be within brackets
+		{
+			if(ch == '(')
+			{
+				error_report(Wrong_bracket_type, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 	//Only square brackets allowed
+				proceed(ch,eof);
+				nerrors++;
+				return false;
+			}
+			else if(ch == '{')
+			{
+				error_report(Wrong_bracket_type, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch));
+				proceed(ch,eof);
+				nerrors++;
+				return false;
+			}
+			else
+			{
+				error_report(Missing_bracket, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 	
+				proceed(ch,eof);
+				nerrors++;
+				return false;
+			}
+		}
+
+		eof = smz -> GetNextChar(ch);
+		
+		if(!isdigit(ch))						//Inputs must be a positive integer
+		{
+			error_report(Illegal_gate_inputs, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch));
+			proceed(ch,eof);
+			nerrors++;
+			return false;
+		}
+		
+		eof = smz -> GetNextNumber(number,ch);				//Gets the current number in the file
+		
+		if(ch != ']')							//Number of inputs must be within brackets
+		{
+			if(ch == ')')
+			{
+				error_report(Wrong_bracket_type, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 	
+				proceed(ch,eof);
+				nerrors++;
+				return false;
+			}
+			if(ch == '}')
+			{
+				error_report(Wrong_bracket_type, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 	
+				proceed(ch,eof);
+				nerrors++;
+				return false;
+			}
+			else
+			{
+				error_report(Missing_bracket, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 	
+				proceed(ch,eof);
+				nerrors++;
+				return false;
+			}
+		}
+		
+		
+		if(kind != aclock)						//Device is a logic gate
+		{
+			if(number < 1 || number > 16)
+			{
+				error_report(Invalid_gate_inputs, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), to_string(number)); 
+				proceed(ch,eof);
+				nerrors++;
+				return false;
+			}
+		}
+	 
+		
+		if(nmz->cvtname(str) == blankname)				//Check if device identifier already exists
+		{
+			id = nmz->lookup((namestring) str);			//if not get its internal identifier from names.cc
+		}
+		else
+		{
+			if(str == "CLOCK" || str == "AND" || str == "NAND" || str == "OR" || str == "NOR" || str == "XOR" || str == "DTYPE" || str == "DATA" || str == "CLK" || str == "SET" || str == "CLEAR" || str == "Q" || str == "QBAR" || str == "DEVICES" || str == "CONNECTIONS" || str == "MONITOR" || str == "END")
+			{
+				error_report(Reserved_identifier, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 
+				proceed(ch,eof);
+				nerrors++;
+				return false;	
+			}
+			else
+			{
+				error_report(Duplicate_device, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 
+				proceed(ch,eof);
+				nerrors++;
+				return false;
+			}
+		}
+
+		dmz -> makedevice(kind,id,number,ok);				//if all is well create device internally
+		
+		if(!ok)
+		{
+			error_report(Internal_error, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+			proceed(ch,eof);
+			nerrors++;
+			return false;
+		}
+		else
+		{
+			dev d;							//Store device internally
+			d.id = id;
+			d.kind = kind;
+			d.name = str;
+			d.input_number = number;
+			if(kind == aclock) d.input_number = 0;
+			devList.push_back(d);
+			
+			eof = smz->GetNextChar(ch);
+			
+			if(kind != aclock)
+			{
+				if (debugging) cout << "Created " << isDeviceType(kind) << " with " << number << " inputs and name " << str << endl; //Device creation report
+			}
+			else
+			{
+				if (debugging) cout << "Created CLOCK with frequency " << number << endl;
+			}
+			return true;
+		}		
+		
+	}
+	else
+	{
+		error_report(Illegal_identifier, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+		proceed(ch,eof);
+		nerrors++;
+		return false;
+	}
+}
+
+bool parser::defineConnections(char & ch)		//Function to define connections
+{
+	string str; 
+	devicekind kind;
+	name id;
+	int number;
+
+	
+	name outDevID;					//Internal Variable for connection declaration
+	name outDevPinID;
+	string outDevName;
+	name inDevID;
+		
+	name outDevKind;
+	name inDevPinID;				
+	string inDevName;
+	
+	bool ok;
+	
+	if(eof == true)
+	{
+		error_report(Abrupt_end, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+		current_phase = finito;
+		return false;
+	}
+	
+	if(isalpha(ch))
+	{
+		eof = smz -> GetNextString(str,ch);
+		
+		if(str == "MONITOR")														
+		{
+			current_phase = mon;
+			if (debugging) cout << endl << "Phase III: Define Monitor Points" << endl << endl;		//Move to Phase III
+			return true;														
+		}
+		
+		if(str == "END")
+		{	
+			if(nconnections == 0 && ConnectionsRequired() != 0)													
+			{
+				error_report(No_connections, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch));
+				current_phase = finito;									//Move to Phase IV
+				return false;								
+			}
+			else
+			{
+				error_report(No_monitor_points, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch));
+				current_phase = finito;									//Move to Phase IV
+				return true;
+			}
+		}
+		
+		if(str == "CONNECTIONS")
+		{
+			error_report(Illegal_identifier, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+			proceed(ch,eof);
+			nerrors++;
+			return false;
+		}
+		if(str == "DEVICES")
+		{
+			error_report(Illegal_identifier, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+			proceed(ch,eof);
+			nerrors++;
+			return false;
+		}
+		
+		id = nmz->cvtname(str);
+
+		if(id == blankname)
+		{
+			error_report(Undefined_device, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 
+			proceed(ch,eof);
+			nerrors++;
+			return false;
+		}
+		
+		outDevID = id;
+		outDevName = str;
+		
+		kind = getKind(str);	//Find the device type for the output device
+		
+		if(kind == dtype)	//Dtype is only device with two outputs
+		{
+			if(ch != '.')
+			{
+				error_report(D_output_illegal, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+				proceed(ch,eof);
+				nerrors++;
+				return false;
+			}
+			eof = smz -> GetNextChar(ch);
+			
+			if(ch!='Q')																
+			{
+				error_report(D_output_illegal, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+				proceed(ch,eof);
+				nerrors++;
+				return false;
+			}
+			
+			eof = smz->GetNextString(str,ch);
+			
+			if(str == "Q" || str == "QBAR")
+			{
+				outDevName += "." + str;
+				outDevPinID = nmz->cvtname(str);
+				
+				if(outDevPinID == blankname)
+				{
+					error_report(Internal_error, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+					proceed(ch,eof);
+					nerrors++;
+					return false;
+				}
+			}
+			else
+			{
+				error_report(D_output_illegal, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 
+				proceed(ch,eof);
+				nerrors++;
+				return false;
+			}			
+		}
+		else
+		{
+			outDevPinID = -1; //THIS SHOULD HAVE BEEN MORE OBVIOUS IN THE DOCUMENTATION...
+		}
+		
+		if(!isalpha(ch) && (kind == aclock || kind == aswitch))
+		{
+			error_report(Single_output_device, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+			proceed(ch,eof);
+			nerrors++;
+			return false;
+		}
+		else if(!isalpha(ch))
+		{
+			error_report(Input_to_Input, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+			proceed(ch,eof);
+			nerrors++;
+			return false;
+			
+		}
+		
+		eof = smz -> GetNextString(str, ch);
+		
+		if(str != "TO")
+		{
+			error_report(TO_missing, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 
+			proceed(ch,eof);
+			nerrors++;
+			return false;
+		}
+		
+		if(!isalpha(ch))
+		{
+			error_report(Illegal_identifier, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+			proceed(ch,eof);
+			nerrors++;
+			return false;
+		}
+		
+		eof = smz -> GetNextString(str,ch);
+		inDevName = str;
+		kind = getKind(str);		//Find the device type for the input device
+		
+		if (kind == aswitch || kind == aclock)
+		{
+			error_report(Device_has_no_input, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 
+			proceed(ch,eof);
+			nerrors++;			
+			return false;
+		}
+		
+		if(ch != '.')
+		{
+			error_report(dot_missing, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+			proceed(ch,eof);
+			nerrors++;
+			return false;
+		}
+		
+		id = nmz->cvtname(str);
+		
+		if(id == blankname)
+		{
+			error_report(Undefined_device, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 
+			proceed(ch,eof);
+			nerrors++;
+			return false;
+		}
+		
+		inDevID = id;
+		
+		if(kind == dtype)		//Dtype has 4 inputs
+		{
+			
+			eof = smz->GetNextChar(ch);
+			
+			if(!isalpha(ch))
+			{
+				error_report(Illegal_identifier, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+				proceed(ch,eof);
+				nerrors++;
+				return false;
+			}
+
+			eof = smz->GetNextString(str,ch);
+
+			if(str != "DATA" && str != "CLK" && str != "SET" && str != "CLEAR")
+			{
+				error_report(Invalid_D_Input, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+				proceed(ch,eof);
+				nerrors++;
+				return false;
+			}
+			
+			inDevPinID = nmz->cvtname(str);
+			
+			if(inDevPinID == blankname)
+			{
+				error_report(Internal_error, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+				proceed(ch,eof);
+				nerrors++;
+				return false;
+			}
+
+			inDevName += "." + str;
+		}
+		
+		else
+		{
+			eof = smz->GetNextChar(ch);															//TODO another error??
+			
+			if(ch!='I')
+			{
+				error_report(no_I_before_number, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+				proceed(ch,eof);
+				nerrors++;	
+				return false;
+			}
+			else
+			{
+				eof = smz->GetNextChar(ch);
+				if(!isdigit(ch))
+				{
+					error_report(no_number_after_I, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+					proceed(ch,eof);
+					nerrors++;
+					return false;
+				}
+				else
+				{
+					eof = smz->GetNextNumber(number,ch);
+					inDevName += ".I" + to_string(number);
+					string s = "I" + to_string(number);
+					inDevPinID = nmz->cvtname(s);
+					
+					if(ch != ';')
+					{
+						s += ch;
+						error_report(no_number_after_I, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), s); 
+						proceed(ch,eof);
+						nerrors++;
+						return false;
+					}
+					
+					if(inDevPinID == blankname)
+					{
+						error_report(Internal_error, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+						proceed(ch,eof);
+						nerrors++;
+						return false;
+					}
+				}
+			}
+		}
+		
+		
+	}
+	else
+	{
+		error_report(Illegal_identifier, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+		proceed(ch,eof);
+		nerrors++;
+		return false;
+	}
+	
+	if(inputInUse(inDevID,inDevPinID))		//Only allow connections to be created if they don't already exist
+	{
+		error_report(Connection_overwrite, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), inDevName); 
+		proceed(ch,eof);
+		nerrors++;
+		return false;
+	}
+
+	
+	netz->makeconnection(inDevID,inDevPinID,outDevID,outDevPinID,ok);
+	
+	if(!ok)
+	{
+		error_report(Internal_error, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), " "); 
+		proceed(ch,eof);
+		nerrors++;
+		return false;
+	}
+	else
+	{
+		if(!inputInUse(inDevID,inDevPinID))
+		{
+			cons Con;
+			Con.inDevice = inDevID;
+			Con.inDevicePin = inDevPinID;
+			conList.push_back(Con); 
+			nconnections++;
+		}
+		if (debugging) cout << "Made a connection between " << outDevName << " and " << inDevName << endl;
+	}
+		
+}
+
+bool parser::createMonitor(char &ch)			//Function to set up monitor points on any device outputs
+{
+	string str;
+	string deviceName;
+	int number;
+	devicekind kind;
+	name device;
+	name deviceOut;
+	bool ok;
+	
+	while(eof ==  false)
+	{
+		if(!isalpha(ch))
+		{
+			error_report(Illegal_identifier, smz->GetCurrentLineNumber(), smz->GetCurrentLine()," ");
+			proceed(ch,eof); 								 	
+			nerrors++; 
+			return false;
+		}
+		
+		eof = smz->GetNextString(str,ch);
+		
+		if(str.length() == 0)			//Check if we have reached the end of file without the presence of END
+		{
+			eof = true;
+			current_phase = finito;
+			return false;
+		}
+		
+		if(str == "END")
+		{
+			if (debugging) cout << endl;
+			current_phase = finito;
+			return false;
+		}
+		
+		kind = getKind(str);
+		
+		if(kind == baddevice)
+		{
+			if(eof == true) return false;			//We need to check that we have not reached the end of file
+			error_report(Undefined_device, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str);
+			proceed(ch,eof); 								 	
+			nerrors++; 
+			return false;
+			
+		}
+		else if( kind == dtype)					//Dtypes are the only devices with two outputs
+		{
+			device = nmz->cvtname(str);
+			
+			if(ch != '.')
+			{
+				error_report(dot_missing, smz->GetCurrentLineNumber(), smz->GetCurrentLine(),string{'.'});
+				proceed(ch,eof); 								 	
+				nerrors++; 
+				return false;
+			}
+			
+			eof = smz->GetNextChar(ch);
+			
+			if(ch != 'Q')
+			{
+				error_report(Invalid_D_Output, smz->GetCurrentLineNumber(), smz->GetCurrentLine(),string{ch});
+				proceed(ch,eof); 								 	
+				nerrors++;
+				return false;
+			}
+			
+			deviceName = str;
+			eof = smz->GetNextString(str,ch);
+			
+			if(str != "Q" && str != "QBAR")
+			{
+				error_report(Invalid_D_Output, smz->GetCurrentLineNumber(), smz->GetCurrentLine(),str);
+				proceed(ch,eof); 								 	
+				nerrors++;
+				return false;
+			}
+			else
+			{
+				deviceOut = nmz->cvtname(str);
+			}
+			
+			mmz->makemonitor(device,deviceOut,ok);
+			
+			if(!ok)
+			{
+				error_report(Internal_error, smz->GetCurrentLineNumber(), smz->GetCurrentLine()," ");
+				proceed(ch,eof); 								 	
+				nerrors++;
+				return false;
+			}
+			else
+			{	
+				if (debugging) cout << "Monitoring " << deviceName << "." << str << endl;
+			}
+		}	
+		else
+		{
+			device = nmz->cvtname(str);
+			deviceOut = -1; //Again, not very obvious...
+			
+			mmz->makemonitor(device,deviceOut,ok);
+			
+			if(!ok)
+			{
+				error_report(Internal_error, smz->GetCurrentLineNumber(), smz->GetCurrentLine()," ");
+				proceed(ch,eof); 								 	
+				nerrors++;
+				return false;
+			}
+			else
+			{
+				if (debugging) cout << "Monitoring " << str << endl;
+			}
+				
+		}
+		
+		if(ch == ';') break;
+		else if(ch == ',')
+		{
+			eof = smz->GetNextChar(ch);
+			
+		}
+		else if(ch == '.')
+		{
+			error_report(Single_output_device, smz->GetCurrentLineNumber(), smz->GetCurrentLine(),string{ch});
+			proceed(ch,eof); 								 	
+			nerrors++;
+			return false;
+		}
+		else
+		{
+			error_report(Invalid_character, smz->GetCurrentLineNumber(), smz->GetCurrentLine(),string{ch});
+			proceed(ch,eof); 								 	
+			nerrors++;
+			return false;
+		}
+		if(eof == true)
+		{
+			current_phase = finito;
+			error_report(Abrupt_end, smz->GetCurrentLineNumber(), smz->GetCurrentLine()," ");
+			proceed(ch,eof); 								 	
+			nerrors++;
+			break;
+		}
+	}
+}
+
+
+
+
+devicekind parser::getKind(string identifier)		//Function to retrive internal representation of device
+{
+	for(int i = 0; i < devList.size();i++)
+	{
+		if(devList[i].name == identifier)
+		{
+			return devList[i].kind;
+		}
+	}
+	
+	return baddevice;
+}
+
+bool parser::end_of_file(int nerrors)			//Summarises any errors made in the definition file
+{
+	Color::Modifier red(Color::FG_RED);				//For Emphasis
+	Color::Modifier bbr(Color::BOLD_AND_BRIGHT);
+	Color::Modifier bbr_off(Color::BOLD_AND_BRIGHT_OFF);
+	Color::Modifier def(Color::FG_DEFAULT);
+	
+	int n = ConnectionsRequired();					//Counts the total number of connections needed such that there are no unused devices
+	if(n != nconnections)
+	{
+  		if(n < nconnections)
+  		{
+  			error_report(Unused_device, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), ""); 	//Issues a warning about unused devices being present
+  			if(debugging) cout << "Devices declared require " <<  ConnectionsRequired() << " connections, but only " << nconnections << " were found" << endl; 
+  			cout << endl;
+  		}
+  		else
+  		{
+  			error_report(Reused_connection, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), ""); 	//Issues a warning about extra connections being present
+  			if(debugging) cout << "Devices declared require " <<  ConnectionsRequired() << " connections, but " << nconnections << " were found" << endl; 
+  		}
+	}
+  	if(debugging) cout << endl << "End of Device Definition File" << endl << endl;
+  	if(nerrors > 0)
+  	{
+  	  	if(nerrors == 1)
+  	  	{
+  	  		cout << "Please" << red << bbr << " review 1 error " << bbr_off << def <<  "in the Device Definition File and Reload it!" << endl << endl;
+  	  	}
+  	  	else
+  	  	{
+  	  		cout << "Please" << red << bbr << " review " << nerrors << " errors " << bbr_off << def << "in the Device Definition File and Reload it!" << endl << endl;
+  	  	}
+  	}
+	else if(nerrors == 0)
+	{
+		cout << "No errors found in Device Definition File!" << endl << endl << "Launching Graphical User Interface..." << endl << endl;
+	}
+	else
+	{
+		error_report(Internal_error, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), "");
+	}
+}
+
+int parser::ConnectionsRequired()	//Counts the total number of connections required											
+{
+	int sum = 0;
+	for(int i = 0; i < devList.size();i++)
+	{
+		sum += devList[i].input_number;
+	}
+	return sum;
+}
+
+bool parser::inputInUse(name device, name pin)		//Checks if an input pin is already in use
+{
+	for(int i =0; i<conList.size(); i++)
+	{
+		if(conList[i].inDevice == device && conList[i].inDevicePin == pin) return true;
+	}
+	
+	return false;
+}
+
+parser::parser (network* network_mod, devices* devices_mod, monitor* monitor_mod, Scanner* scanner_mod, names* names_mod)
 {
   netz = network_mod;  /* make internal copies of these class pointers */
   dmz = devices_mod;   /* so we can call functions from these classes  */
@@ -127,244 +1236,325 @@ parser::parser (network* network_mod, devices* devices_mod,
                        /* netz->makeconnection (i1, i2, o1, o2, ok);   */
 
   /* any other initialisation you want to do? */
-
-}
-
-devicekind isDevice(namestring str) //Translates Device Defintion to internal representation
-{
-	if(str == "SWITCH") 	return aswitch;
-	if(str == "CLOCK")		return aclock;
-	if(str == "AND")		return andgate;
-	if(str == "NAND")		return nandgate;
-	if(str == "OR")			return orgate;
-	if(str == "NOR")		return norgate;
-	if(str == "XOR")		return xorgate;
-	if(str == "DTYPE")		return dtype;
-	else   					return baddevice;
+  
+  nmz = names_mod;
+  
+  nmz -> lookup("DEVICES");			//Add phase headers to lookup table
+  nmz -> lookup("CONNECTIONS");			//to prevent errors such as declaring
+  nmz -> lookup("MONITOR");			//a switch named MONITOR which can 
+  nmz -> lookup("END");				//otherwise cause problems
+  
+  nerrors = 0;					//Initialise these to track the number of connections and the number of errors in the definition file
+  nconnections = 0;				
 }
 
 void parser::error_report(er error_type, int error_line, string current_line, string error_string) //Reports error on command prompt
 {
 	
-	Color::Modifier red(Color::FG_RED);					//For Errors
+	Color::Modifier red(Color::FG_RED);				//For Errors
 	Color::Modifier green(Color::FG_GREEN);				//For Pointer
 	Color::Modifier cyan(Color::FG_CYAN);				//For Warnings
-	Color::Modifier def(Color::FG_DEFAULT);
+	Color::Modifier yellow(Color::FG_YELLOW);			//For Internal Errors
 	Color::Modifier bbr(Color::BOLD_AND_BRIGHT);
 	Color::Modifier bbr_off(Color::BOLD_AND_BRIGHT_OFF);
+	Color::Modifier def(Color::FG_DEFAULT);
 	
-	size_t err_pos = current_line.find(error_string);
-	
+	size_t err_pos = current_line.find(error_string);		/*   Count the number of spaces required for correct placement of ^
+									     Additional spaces to accomodate "Line #: " in error reporting  */
+ 	if(err_pos == string::npos) err_pos = 0;
+	string str = "Line " + to_string(error_line) + ": ";
+	err_pos += str.size()+2;
 
 	switch(error_type)
 	{
 		//Syntax Errors
-		case no_DEV :
-			cout << red << bbr << "Syntax Error 1: Expected DEVICES at the beginning of definition file (no ;)" << bbr_off << def << endl 	//Display error message
-			<< "Line " << error_line << ": " << current_line << endl																			//Display error line
-			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;																	//Place pointer underneath error
+		case DEVICES_not_present :
+			cout << red << bbr << "Syntax Error 1:" << bbr_off << def << " Expected DEVICES at the beginning of definition file" << endl 	//Display error message
+			<< "Line " << error_line << ": " << current_line << endl									//Display error line		
+			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;								//Place pointer underneath error	
+			break;												
 			
-		case dev :
-			cout << red << bbr << "Syntax Error 2: Device type not recognised" << endl 
+		case Nonexistent_device_type :
+			cout << red << bbr << "Syntax Error 2:" << bbr_off << def << " Device type \"" << error_string << "\" not recognised" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case nam :
-			cout << red << bbr << "Syntax Error 3: Illegal device name (names must start with a letter and contain no special characters)" << bbr_off << def << endl 
+		case Illegal_identifier :
+			cout << red << bbr << "Syntax Error 3:" << bbr_off << def << " Illegal device name (names must start with a letter and contain no special characters)" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
-			
-		case brack :
-			cout << red << bbr << "Syntax Error 4: Expected **BRACKET TYPE** before declaring number of inputs for this device" << bbr_off << def << endl 
+			break;
+		case Wrong_bracket_type :
+			cout << red << bbr << "Syntax Error 4:"  << bbr_off << def << " Expected “[” before declaring number of inputs for this device" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case brack_miss :
-			cout << red << bbr << "Syntax Error 5: Expected **BRACKET TYPE** when declaring this device" << bbr_off << def << endl 
+		case Missing_bracket :
+			cout << red << bbr << "Syntax Error 5:"  << bbr_off << def << " Expected “[” when declaring this device" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case input_no :
-			cout << red << bbr << "Syntax Error 6: Expected positive integer for number of inputs" << bbr_off << def << endl 
+		case Illegal_gate_inputs :
+			cout << red << bbr << "Syntax Error 6:"  << bbr_off << def << " Expected positive integer for number of inputs" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case sw_pos :
-			cout << red << bbr << "Syntax Error 7: Expected 0 or 1 for switch position" << bbr_off << def << endl 
+		case Invalid_switch_position :
+			cout << red << bbr << "Syntax Error 7:" << bbr_off << def << " Expected “0” or “1” for switch position" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case sw_def :
-			cout << red << bbr << "Syntax Error 8: Invalid switch definition (Expected “= 0” or “= 1”)'" << bbr_off << def << endl 
+		case Invalid_switch_definition :
+			cout << red << bbr << "Syntax Error 8:" << bbr_off << def << " Invalid switch definition (Expected “= 0” or “= 1”)" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case semi :
-			cout << red << bbr << "Syntax Error 9: Expected “;” at end of expression" << bbr_off << def << endl 
+		case semicolumn :
+			cout << red << bbr << "Syntax Error 9:" << bbr_off << def << " Expected “;” at end of expression" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case no_CON :
-			cout << red << bbr << "Syntax Error 10: Expected ”CONNECTIONS” before connection definitions (no “;”)" << bbr_off << def << endl 
+		case CONNECTIONS_not_present :
+			cout << red << bbr << "Syntax Error 10:" << bbr_off << def << " Expected “CONNECTIONS” before connection definitions" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case D_out :
-			cout << red << bbr << "Syntax Error 11: Expected “.Q” or “.QBAR” at output device" << bbr_off << def << endl 
+		case D_output_illegal :
+			cout << red << bbr << "Syntax Error 11:" << bbr_off << def << " Expected “.Q” or “.QBAR” at output device" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case TO :
-			cout << red << bbr << "Syntax Error 12: Expected “TO” after output device" << bbr_off << def << endl 
+		case TO_missing :
+			cout << red << bbr << "Syntax Error 12:" << bbr_off << def << " Expected “TO” after output device" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case in_no :
-			cout << red << bbr << "Syntax Error 13: Invalid connection input. Need G1.I1 for example" << bbr_off << def << endl 
+		case no_number_after_I :
+			cout << red << bbr << "Syntax Error 13:" << bbr_off << def << " Invalid connection input. Need G1.I1 for example" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case in_I :
-			cout << red << bbr << "Syntax Error 14: Expected “I” after “.” for input device. Need G1.I1 for example" << bbr_off << def << endl 
+		case no_I_before_number :
+			cout << red << bbr << "Syntax Error 14:" << bbr_off << def << " Expected “I” after “.” for input device. Need G1.I1 for example" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case in_to_in :
-			cout << red << bbr << "Syntax Error 15: Device input connected to device input" << bbr_off << def << endl 
+		case Input_to_Input :
+			cout << red << bbr << "Syntax Error 15:" << bbr_off << def << " Device input connected to device input" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case in_to_out :
-			cout << red << bbr << "Syntax Error 16: Device input connected to device output" << bbr_off << def << endl 
+		case Input_to_Output :
+			cout << red << bbr << "Syntax Error 16:" << bbr_off << def << " Device input connected to device output" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case out_to_out :
-			cout << red << bbr << "Syntax Error 17: Device output connected to device output" << bbr_off << def << endl 
+		case Output_to_Output :
+			cout << red << bbr << "Syntax Error 17:" << bbr_off << def << " Device output connected to device output" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case no_MON :
-			cout << red << bbr << "Syntax Error 18: Expected “MONITOR” before monitor points are declared (no “;”)" << bbr_off << def << endl 
+		case MONITOR_not_present :
+			cout << red << bbr << "Syntax Error 18:" << bbr_off << def << " Expected “MONITOR” before monitor points are declared" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case ch :
-			cout << red << bbr << "Syntax Error 19: Illegal character used" << bbr_off << def << endl 
+		case Invalid_character :
+			cout << red << bbr << "Syntax Error 19:" << bbr_off << def << " Illegal character used" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
+			
+			
+		case Abrupt_end :
+			cout << red << bbr << "Syntax Error 21:" << bbr_off << def << " Defintion File is incomplete! (There are missing sections)" << endl 
+			<< "Line " << error_line << ": " << current_line << endl
+			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
 		//Semantic Errors	
-		case keyword :
-			cout << red << bbr << "Semantic Error 1: Reserved keyword used as device identifier" << bbr_off << def << endl 
+		case Reserved_identifier :
+			cout << red << bbr << "Semantic Error 1:" << bbr_off << def << " Reserved keyword used as device identifier" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case inp_no :
-			cout << red << bbr << "Semantic Error 2: Logic gates limited to 16 inputs" << bbr_off << def << endl 
+		case Invalid_gate_inputs :
+			cout << red << bbr << "Semantic Error 2:" << bbr_off << def << " Logic gates limited to 16 inputs" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case xor_in :
-			cout << red << bbr << "Semantic Error 3: XOR gate must have two inputs" << bbr_off << def << endl 
+		case XOR_inputs :
+			cout << red << bbr << "Semantic Error 3:" << bbr_off << def << " XOR gate must have two inputs" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case one_in :
-			cout << red << bbr << "Semantic Error 4: Logic gates only have a single output (no need for “.”)" << bbr_off << def << endl 
+		case Single_output_device :
+			cout << red << bbr << "Semantic Error 4:" << bbr_off << def << " Device only has a single output (no need for “.” something)" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case cl_synt :
-			cout << red << bbr << "Semantic Error 5: Invalid device definition. Use CLOCK CK(1) or AND G[2] or SWITCH SW" << bbr_off << def << endl 
+		case Invalid_gate_syntax :
+			cout << red << bbr << "Semantic Error 5:" << bbr_off << def << " Invalid device definition. Use CLOCK CK[1] or AND G[2] or SWITCH SW" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case log_synt :
-			cout << red << bbr << "Semantic Error 6: Invalid device definition. Use CLOCK CK(1) or AND G[2] or SWITCH SW" << bbr_off << def << endl 
+		case Invalid_switch_syntax :
+			cout << red << bbr << "Semantic Error 7:" << bbr_off << def << " Invalid device definition. Use CLOCK CK[1] or AND G[2] or SWITCH SW" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case sw_synt :
-			cout << red << bbr << "Semantic Error 7: Invalid device definition. Use CLOCK CK(1) or AND G[2] or SWITCH SW" << bbr_off << def << endl 
+		case Device_has_no_input:
+			cout << red << bbr << "Semantic Error 8:" << bbr_off << def << " Device has no legal input" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case out_no_in :
-			cout << red << bbr << "Semantic Error 8: Cannot connect logic output to clock" << bbr_off << def << endl 
+		case D_input_only :
+			cout << red << bbr << "Semantic Error 10:" << bbr_off << def << " Logic gate input must be of the form G1.I1" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case in_D :
-			cout << red << bbr << "Semantic Error 10: Logic gate input must be of the form G1.I1" << bbr_off << def << endl 
+		case D_output_only :
+			cout << red << bbr << "Semantic Error 11:" << bbr_off << def << " Logic gate only has one output (no “.Q” or “.QBAR” output)" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case out_D :
-			cout << red << bbr << "Semantic Error 11: Logic gate only has one output (no .Q or .QBAR output)" << bbr_off << def << endl 
+		case Undefined_device :
+			cout << red << bbr << "Semantic Error 12:" << bbr_off << def << " Device " << error_string << " not defined" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case undef_dev :
-			cout << red << bbr << "Semantic Error 12: Device **DEVICE NAME** not defined" << bbr_off << def << endl 
+		case Duplicate_device :
+			cout << red << bbr << "Semantic Error 13:" << bbr_off << def << " Duplicate device definition " << error_string << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case same_name :
-			cout << red << bbr << "Semantic Error 13: Duplicate device definition **DEVICE NAME**" << bbr_off << def << endl 
+		case Muptiple_connections :
+			cout << red << bbr << "Semantic Error 14:" << bbr_off << def << " Multiple outputs connected to the same input" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case mult_in :
-			cout << red << bbr << "Semantic Error 14: Multiple outputs connected to the same input" << bbr_off << def << endl 
+		case Unused_input :
+			cout << red << bbr << "Semantic Error 15:" << bbr_off << def << " Device input is unused" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
 			
-		case no_in :
-			cout << red << bbr << "Semantic Error 15: Device input is unused" << bbr_off << def << endl 
+		case dot_missing :
+			cout << red << bbr << "Semantic Error 16:" << bbr_off << def << " Device input needs to be specified using “.”" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
+			
+		case Invalid_D_Input :
+			cout << red << bbr << "Semantic Error 17:" << bbr_off << def << " Valid D-type inputs include “DATA”, “CLK”, “SET” and “CLEAR”" << endl 
+			<< "Line " << error_line << ": " << current_line << endl
+			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
+			
+		case Invalid_D_Output :
+			cout << red << bbr << "Semantic Error 18:" << bbr_off << def << " Valid D-type outputs include “Q” and “QBAR”" << endl 
+			<< "Line " << error_line << ": " << current_line << endl
+			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
+			
+		case Connection_overwrite :
+			cout << red << bbr << "Semantic Error 19:" << bbr_off << def << " Connection to " << error_string << " already exists" << endl 
+			<< "Line " << error_line << ": " << current_line << endl
+			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
+			
 			
 		//Warnings	
-		case unused :
-			cout << cyan << bbr << "Warning: Unused device **DEVICE NAME**" << bbr_off << def << endl 
-			<< "Line " << error_line << ": " << current_line << endl;
+		case Unused_device :
+			cout << cyan << bbr << "Warning:" << bbr_off << def << " Unused device " << endl;
+			break;
 			
-		case truncate :
-			cout << cyan << bbr << "Warning: Device name **DEVICE NAME** truncated to 8 characters" << bbr_off << def << endl 
+		case Identifier_truncated :
+			cout << cyan << bbr << "Warning:" << bbr_off << def << " Device name " << error_string << " truncated to 8 characters" << endl 
 			<< "Line " << error_line << ": " << current_line << endl;
+			break;
 			
-		case no_monitor :
-			cout << cyan << bbr << "Warning: No monitor points specified" << bbr_off << def << endl 
+		case No_connections :
+			cout << cyan << bbr << "Warning:" << bbr_off << def << " No connections specified in definition file" << endl
+			<< "Line " << error_line << ": " << current_line << endl
+			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			break;
+			
+		case No_monitor_points :
+			cout << cyan << bbr << "Warning:" << bbr_off << def << " No monitor points specified" << endl 
 			<< "Line " << error_line << ": " << current_line << endl;
+			break;
+			
+		case Reused_connection :
+			cout << cyan << bbr << "Warning:" << bbr_off << def << " Reused device input " << endl;
+			break;
+			
+			
+		//Internal Error (we should never get here)
+		case Internal_error :
+			cout << yellow << bbr << "INTERNAL ERROR: ABORTING!" << bbr_off << def << endl 
+			<< "Line " << error_line << ": " << current_line << endl;
+			exit(404);
+			break;
+			
+		default:
+			cout << "@@" << endl;
+			break;
 		}
 }
 
-void parser::proceed(char& cur_char, bool& neof) //Move to next semicolumn
+void parser::proceed(char& cur_char, bool& eof) 	//Move to next semicolumn
 {
-	while (cur_char != ';' && neof == true)  neof = smz->GetNextChar(cur_char);
+	while (cur_char != ';' && eof == false)
+	{
+	 	eof = smz->GetNextChar(cur_char);
+ 	}
 }
 
+/*
 // main function used for debugging
-
 int main()
 {
-	bool eof = false;
-	char ch;
-	string str;
-	int numb;
+	string filename = "test.txt";			//Name of test file
 	
-	names *names_mod = new names();
-	string filename = "test.txt";
-	Scanner *scanner_mod = new Scanner(names_mod,filename);
+	names* names_mod     = new names();
 	network* network_mod = new network(names_mod);
 	devices* devices_mod = new devices(names_mod, network_mod);
 	monitor* monitor_mod = new monitor(names_mod, network_mod);
-	parser *prs = new parser (network_mod,devices_mod, monitor_mod, scanner_mod);
-	
+	Scanner* scanner_mod = new Scanner(names_mod,filename);
+	parser* prs          = new parser (network_mod,devices_mod, monitor_mod, scanner_mod, names_mod);
+
+
 	prs->readin();
-	
-	
 	
 	return 0;
 }
+*/
