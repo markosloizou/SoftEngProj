@@ -32,23 +32,28 @@ class Input_Buffer{
 		unsigned int lineNumber; //stores the current line number
 		bool eof; //eof flag
 		string CurrentLine;	//string Containing the current line
+		string PreviousLine;
 		unsigned int currentCharacter;//contains current character position in the string
 	
 	public:
 		Input_Buffer(string filestring); //constructor
-		Input_Buffer();
+		Input_Buffer();//default constructor
 		bool getChar(char &ch);	//gets next character of the input file
 		int getCurrentLineNumber();	//returns current line number
 		string getCurrentLine(); //returns the current line if eof has not been reached
-		bool moveToNextLine(); //Move to next line in case of a comment
+		bool moveToNextLine(char &ch); //Move to next line in case of a comment
 		char NextCharacter();//USed to detect comments
+		char afterCommentCharacter();//used to detect repeated comments
+		string getPreviousLine();
+		int getCharPosition();
+		char getCurChar();
 };
 
 
 class Scanner{
 	
 	private:
-		Input_Buffer inBuffer;	//input buffer class for managing input
+		Input_Buffer* inBuffer;	//input buffer class for managing input
 		names* nmz;	//pointer to nmz
 		char current_char ='\0'; //current character
 		bool eof_flag = false; 
@@ -65,8 +70,8 @@ class Scanner{
 		// ch. Returns false if eofile has been reached
 		bool GetNextString(string &str, char &ch); 
 		
-		//Gets character and places it in ch. Returns false if eofile has been reached
 		bool GetNextChar(char &ch);
+		//Gets character and places it in ch. Returns false if eofile has been reached
 		
 		//Gets next number and writes it to numb, character following numb is placed in ch
 		//Returns false if eofile has been reached
@@ -81,5 +86,7 @@ class Scanner{
 		//Returns the current line number
 		int GetCurrentLineNumber();
 		
+		string GetPreviousLine();
+		int GetCharPosition();
 };
 #endif

@@ -30,11 +30,15 @@ Input_Buffer::Input_Buffer(string filestring)
 	// TODO check what happens with empty file
 	lineNumber = 1;
 }
-
+/*
 Input_Buffer::Input_Buffer()
 {
 }
-
+*/
+int Input_Buffer::getCharPosition()
+{
+	return currentCharacter;
+}
 
 bool  Input_Buffer::getChar(char &ch)
 {
@@ -57,17 +61,23 @@ bool  Input_Buffer::getChar(char &ch)
 		
 	}
 	
-	else if(currentCharacter == CurrentLine.length())
+	else if(currentCharacter == CurrentLine.length() && eof == false)
 	{
 		eof = getNextLine();
 		ch = CurrentLine[currentCharacter];
 		currentCharacter++;
+		return false;
 	}
-	return false;
+	else
+	{	
+		return true;
+	}
+	
 }
 
 bool Input_Buffer::getNextLine()
 {
+	PreviousLine = CurrentLine;
 	getline(inpf, CurrentLine);
 	CurrentLine += '\n';
 	currentCharacter = 0;
@@ -76,18 +86,31 @@ bool Input_Buffer::getNextLine()
 	return inpf.eof();
 }
 
+char Input_Buffer::getCurChar()
+{
+	int next_c = currentCharacter-1;
+	if(next_c < CurrentLine.length())
+	{
+		return CurrentLine[next_c];
+	}
+	else
+	{
+		return '\0';
+	}
+}
 
 int Input_Buffer::getCurrentLineNumber()
 {
 	return lineNumber;
 }
 
+
 string Input_Buffer::getCurrentLine()
 {
 	return CurrentLine;
 }
 
-bool Input_Buffer::moveToNextLine()
+bool Input_Buffer::moveToNextLine(char &ch)
 {
 	eof = getNextLine();
 	return eof;
@@ -106,8 +129,24 @@ char Input_Buffer::NextCharacter()
 	}
 }
 
+char Input_Buffer::afterCommentCharacter()
+{
+	int next_c = currentCharacter+1;
+	if(next_c < CurrentLine.length())
+	{
+		return CurrentLine[next_c];
+	}
+	else
+	{
+		return '\0';
+	}
+}
 
 
+string Input_Buffer::getPreviousLine()
+{
+	return PreviousLine;
+}
 
 
 // ==== Implementing scanner ====
@@ -116,21 +155,21 @@ char Input_Buffer::NextCharacter()
 Scanner::Scanner(names *nm, string file)
 {
 	nmz = nm;
-	inBuffer = Input_Buffer(file);
+	inBuffer = new Input_Buffer(file);
 }
 
 
 //Returns number line maintained by the input buffer
 int Scanner::GetCurrentLineNumber()
 {
-	return inBuffer.getCurrentLineNumber();
+	return inBuffer->getCurrentLineNumber() ;
 }
 
 //Returns current line string maintained by the input buffer
 string Scanner::GetCurrentLine()
 {
 	// removes last character which is a  new line character
-	string str = inBuffer.getCurrentLine();
+	string str = inBuffer->getCurrentLine();
 	str.pop_back(); 
 	return str;
 }
@@ -143,7 +182,7 @@ bool Scanner::GetNextNumber(int &numb, char &ch)
 	while(isdigit(current_char))
 	{
 		s += current_char;
-		eof_flag = inBuffer.getChar(current_char);
+		eof_flag = inBuffer->getChar(current_char);
 	}
 	
 	try{
@@ -153,13 +192,17 @@ bool Scanner::GetNextNumber(int &numb, char &ch)
 		numb = -1; //No number found
 	}
 	
-	eof_flag = GetNextChar(ch);
+	ch = current_char;
+	if(isspace(ch))
+	{
+		eof_flag = GetNextChar(ch);
+	}
 	return eof_flag;
 }
 
 bool Scanner::GetNextChar(char &ch)
 {
-	eof_flag = inBuffer.getChar(current_char);
+	eof_flag = inBuffer->getChar(current_char);
 	
 	//skip spaces
 	if(isspace(current_char))
@@ -168,25 +211,31 @@ bool Scanner::GetNextChar(char &ch)
 	}
 	
 	//if a comment is found skip the line
-	if((current_char == '/') && (inBuffer.NextCharacter() == '/'))
+	if((current_char == '/') && (inBuffer->NextCharacter() == '/'))
 	{
 		skipSingleLineComment();
 		if(eof_flag == false)
 		{
-			eof_flag = inBuffer.getChar(current_char);
+			eof_flag = inBuffer->getChar(current_char);
+			
+			
+			if(isspace(current_char)) skipspaces();
+			
+			
 		}
 	}
 	
-	if((current_char == '/') && (inBuffer.NextCharacter() == '*'))
+	if((current_char == '/') && (inBuffer->NextCharacter() == '*'))
 	{
 		skipMultiLineComment();
-		if(eof_flag == false)
+		if(eof_flag == false && isspace(current_char))
 		{
-			eof_flag = inBuffer.getChar(current_char);
+			skipspaces();
 		}
 	}
 	
 	ch = current_char;
+	
 	return eof_flag;
 }
 
@@ -197,7 +246,7 @@ bool Scanner::GetNextString(string &str, char &ch)
 	s = "";
 	if(current_char == '\0')
 	{
-		eof_flag = inBuffer.getChar(current_char);
+		eof_flag = inBuffer->getChar(current_char);
 	}
 
 	
@@ -210,23 +259,35 @@ bool Scanner::GetNextString(string &str, char &ch)
 			skipspaces();
 		}
 		//if a comment is found skip the line
-		else if((current_char == '/') && (inBuffer.NextCharacter() == '/'))
+		else if((current_char == '/') && (inBuffer->NextCharacter() == '/'))
 		{
 			skipSingleLineComment();
+
 			if(eof_flag == false)
 			{
-				eof_flag = inBuffer.getChar(current_char);
+				eof_flag = inBuffer->getChar(current_char);
+			}
+			if(isspace(current_char))
+			{
+
+				skipspaces();
 			}
 
 		}
-		else if((current_char == '/') && (inBuffer.NextCharacter() == '*'))
+		else if((current_char == '/') && (inBuffer->NextCharacter() == '*'))
 		{
-			skipMultiLineComment();
-			if(eof_flag == false)
-			{
-				eof_flag = inBuffer.getChar(current_char);
-			}
 
+			skipMultiLineComment();
+			 
+			//if(eof_flag == false)
+			//{
+			//	eof_flag = GetNextChar(current_char);
+			//}
+			//if(isspace(current_char))
+			//{
+
+				//skipspaces();
+			//}
 		}
 		else
 		{
@@ -234,39 +295,42 @@ bool Scanner::GetNextString(string &str, char &ch)
 		}		
 	}
 	
+	if(isspace(current_char)) skipspaces();
+
+	
 	if(isalpha(current_char))//first character must be a
 	{
 		//numbers and underscores allowed in the identifier
 		while(isalnum(current_char) || current_char == '_')
 		{
 			s += current_char;
-			eof_flag = inBuffer.getChar(current_char);
+			eof_flag = inBuffer->getChar(current_char);
 
 			if(eof_flag)
 			{
 				break;
 			}
-		
+			/*
 			//if a comment is found skip the line
-			if((current_char == '/') && (inBuffer.NextCharacter() == '/'))
+			if((current_char == '/') && (inBuffer->NextCharacter() == '/'))
 			{
 				skipSingleLineComment();
 				if(eof_flag == false)
 				{
-					eof_flag = inBuffer.getChar(current_char);
+					eof_flag = inBuffer->getChar(current_char);
 					break;
 				}
 			}
 	
-			if((current_char == '/') && (inBuffer.NextCharacter() == '*'))
+			if((current_char == '/') && (inBuffer->NextCharacter() == '*'))
 			{
 				skipMultiLineComment();
 				if(eof_flag == false)
 				{
-					eof_flag = inBuffer.getChar(current_char);
+					eof_flag = inBuffer->getChar(current_char);
 					break;
 				}
-			}
+			}*/
 		}
 	}
 	str = s;
@@ -275,6 +339,11 @@ bool Scanner::GetNextString(string &str, char &ch)
 	{
 		eof_flag = GetNextChar(ch);
 	}
+	if((str == "" || str == "\n" || str==" " || str == "\0"|| str=="\t") && eof_flag == false)
+	{
+		 GetNextString(str,ch);
+	}
+	if(str == "") eof_flag = true;
 	return eof_flag;
 }
 
@@ -284,27 +353,134 @@ void Scanner::skipspaces()
 {
 	while(isspace(current_char) && (eof_flag == false))
 	{
-		eof_flag = inBuffer.getChar(current_char);
+		eof_flag = inBuffer->getChar(current_char);
 	}
 }
 
 void Scanner::skipSingleLineComment()
 {
-	eof_flag = inBuffer.moveToNextLine(); 
+	//cout << "Skipping s line" << endl;
+	eof_flag = inBuffer->moveToNextLine(current_char); 
+	
+	current_char = inBuffer->getCurChar();
+	
+	
+	//cout << "cur character = " << current_char << "  next char = " <<inBuffer->NextCharacter() << endl;
+	//current_char = inBuffer->getCurChar();
+	if((int)current_char == 0 && (int)inBuffer->NextCharacter() == 10) 
+	{
+		eof_flag = inBuffer->moveToNextLine(current_char); 
+	
+		current_char = inBuffer->getCurChar();
+	}
+	
+	if(isspace(current_char)) skipspaces();
+	if((int)current_char == 10) eof_flag = inBuffer->getChar(current_char);
+	if(current_char == '\0')
+	{
+		if(inBuffer->NextCharacter() == '/' && inBuffer->afterCommentCharacter() =='/') skipSingleLineComment();
+	}
+	if(current_char == '/' && inBuffer->afterCommentCharacter() =='/') skipSingleLineComment();
+	
+	if(current_char == '/' && inBuffer->NextCharacter() == '/') skipSingleLineComment();
+	
+	if(isspace(current_char)) skipspaces();
+
+	if(current_char == '/' && inBuffer->afterCommentCharacter() =='*')  skipMultiLineComment();
+	if(current_char == '/' && inBuffer->NextCharacter() == '*') skipMultiLineComment();
+	
+	if(isspace(current_char)) skipspaces();
+	if((int)current_char == 0 && (int)inBuffer->NextCharacter() == 10)
+	
+	cout << "after single cur character = " << (int)current_char << "  next char = " <<(int)inBuffer->NextCharacter() << endl;
 }
 
 void Scanner::skipMultiLineComment()
 {	
+	//cout << "Skipping m line" << endl;
+/*
+	bool s = false;
 	while(eof_flag == false)
 	{
-		
-		if((current_char == '*') && (inBuffer.NextCharacter() == '/'))
+		eof_flag = inBuffer->getChar(current_char);
+		if((current_char == '*') && (inBuffer->NextCharacter() == '/'))
 		{
-			eof_flag = inBuffer.getChar(current_char);
+			eof_flag = inBuffer->getChar(current_char);
+			//eof_flag = inBuffer->getChar(current_char);
+			//eof_flag = GetNextChar(ch);
+			
+			while(isspace(inBuffer->NextCharacter()))
+			{
+				//cout << "c char: " << current_char << endl;
+				eof_flag = inBuffer->getChar(current_char);
+				s = true;
+			}
+			if(s) eof_flag = inBuffer->getChar(current_char);
+			
+			//cout << "c char: " << current_char << endl;
+			
 			break;
 		}
-		eof_flag = inBuffer.getChar(current_char);
+		
+	}*/
+	/*
+	char previous_char = current_char;
+	
+	 while(eof_flag == false)
+	 {
+	 	if(previous_char == '*' && current_char == '/')
+	 	{
+	 		eof_flag = inBuffer->getChar(current_char);
+	 		break;
+	 	}
+	 	else
+	 	{
+	 		previous_char = current_char;
+	 		eof_flag = inBuffer->getChar(current_char);
+	 	}
+	 }
+	 */ 
+	 
+	
+	
+	
+	 while(eof_flag == false)
+	 {
+	 	if(current_char == '*' && inBuffer->NextCharacter() == '/')
+	 	{
+	 		eof_flag = inBuffer->getChar(current_char);
+	 		eof_flag = inBuffer->getChar(current_char);
+	 		break;
+	 	}
+	 	else
+	 	{
+	 		eof_flag = inBuffer->getChar(current_char);
+	 	}
+	 }
+	 /*
+	if(isspace(current_char)) skipspaces();
+	if(current_char == '/' && inBuffer->afterCommentCharacter() =='/') skipSingleLineComment();
+	if(isspace(current_char)) skipspaces();
+	if(current_char == '/' && inBuffer->afterCommentCharacter() =='*')  skipMultiLineComment();
+	
+	if(isspace(current_char)) skipspaces();*/
+	 
+	if(current_char == '\0') eof_flag = inBuffer->getChar(current_char);
+	if(isspace(current_char)) skipspaces();
+	if(current_char == '\0') eof_flag = inBuffer->getChar(current_char);
+	if(current_char == '/' && inBuffer->NextCharacter() =='/') skipSingleLineComment();
+	if(isspace(current_char)) skipspaces();
+	if(current_char == '\0') eof_flag = inBuffer->getChar(current_char);
+	if(current_char == '/' && inBuffer->NextCharacter() =='*')  skipMultiLineComment();
+	if(isspace(current_char)) skipspaces();
+	if(current_char == '\0')
+	{
+		if(inBuffer->NextCharacter() == '/' && inBuffer->afterCommentCharacter() =='/') skipSingleLineComment();
 	}
+	if(current_char == '\0') eof_flag = inBuffer->getChar(current_char);
+	if(current_char == '/' && inBuffer->NextCharacter() =='*')  skipMultiLineComment();
+	
+	//cout << "After multi cur character = " << current_char << "  next char = " <<inBuffer->NextCharacter() << endl;
 }
 
 bool Scanner::GetCurrentChar(char &ch)
@@ -313,7 +489,15 @@ bool Scanner::GetCurrentChar(char &ch)
 	return eof_flag;
 }
 
+string Scanner::GetPreviousLine()
+{
+	return inBuffer->getPreviousLine();
+}
 
+int Scanner::GetCharPosition()
+{
+	return inBuffer->getCharPosition();
+}
 // main used for debugging
 /*
 int main()
