@@ -24,7 +24,7 @@ guitest: $(G_OBJECTS)
 	 $(CXX) -std=c++11 -o guitest $(G_OBJECTS) `/homes/ahg13/wxWidgets-3.0.3/gtk-build/wx-config --version=3.0 --libs --gl_libs` $(OPENGL_LIBS)
 
 clean: 
-	rm -f *.o logsim guitest
+	rm -f *.o logsim guitest``
 
 depend:
 	makedepend $(SRC)

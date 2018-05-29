@@ -11,16 +11,22 @@
 #include "names.h"
 #include "devices.h"
 #include "monitor.h"
+#include "parser.h"
 
 typedef struct 
 {
 	name devId;
 	name pinId;
-	devicekind kind;
 	int number;
 	string nme;
 	int startTime;
 } mons;
+
+typedef struct
+{
+	name devId;
+	name pinId;
+} monDev;
 
 enum { 
 	MY_SPINCNTRL_ID = wxID_HIGHEST + 1,
@@ -49,7 +55,7 @@ class MyGLCanvas;
 class MyFrame: public wxFrame
 {
  	public:
-  	MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, const wxSize& size, names *names_mod = NULL, devices *devices_mod = NULL, monitor *monitor_mod = NULL, long style = wxDEFAULT_FRAME_STYLE); // constructor
+  	MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, const wxSize& size, names *names_mod = NULL, devices *devices_mod = NULL, monitor *monitor_mod = NULL, parser * parser_mod = NULL, long style = wxDEFAULT_FRAME_STYLE); // constructor
   	void print_action(string message);
   	//void mirror_char(unsigned char *pixels, int width, int height);
   	
@@ -58,6 +64,7 @@ class MyFrame: public wxFrame
   	names *nmz;                             // pointer to names class
   	devices *dmz;                           // pointer to devices class
   	monitor *mmz;                           // pointer to monitor class
+  	parser *prs;
 	
 	wxWindow *left_canvas_window = new wxWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_SUNKEN, "Canvas");
 	wxWindow *dialog_window = new wxWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE, "Dialog");
@@ -81,12 +88,13 @@ class MyFrame: public wxFrame
   	wxStaticText *horz_zoom_value = new wxStaticText(right_button_window, wxID_ANY, "x100%");
   	int action_num = 2;
   	
-  	wxString *switch_list = new wxString[6]{wxT("SW1"), wxT("SW2"), wxT("SW3"), wxT("SW4"), wxT("SW5"), wxT("SW6")};
-  	wxCheckListBox *toggle_list = new wxCheckListBox(right_button_window, SWITCH_LISTBOX_ID, wxDefaultPosition, wxSize(125, 95), 6, switch_list);  	
-  	wxString *monitor_list = new wxString[6]{wxT("M1"), wxT("M2"), wxT("M3"), wxT("M4"), wxT("M5"), wxT("M6")};
-	wxCheckListBox *monitor_list1 = new wxCheckListBox(right_button_window, MONITOR_LISTBOX_ID, wxDefaultPosition, wxSize(125, 95), 6, monitor_list);
-  	wxString *action_list = new wxString[1]{wxT("1: Initialised program")};
-  	wxListBox *action_list1 = new wxListBox(dialog_window, wxID_ANY, wxDefaultPosition, wxSize(-1, 72), 1, action_list);
+  	wxString *switch_list;
+  	wxCheckListBox *toggle_list;
+  	wxString *monitor_list;
+  	wxCheckListBox *monitor_list1;
+  	wxString *action_list;
+	wxListBox *action_list1;
+  	  
   	
   	bool show_grid = true;
   	bool show_settings = true;
@@ -109,6 +117,10 @@ class MyFrame: public wxFrame
   	void OnContinueButton(wxCommandEvent &event);
   	void SaveCanvas(wxCommandEvent &event);
   	
+  	vector<dev> devList;
+  	vector<string> switchNames;
+  	vector<monDev> MList;
+  	
   DECLARE_EVENT_TABLE()
 };
     
@@ -129,6 +141,7 @@ class MyGLCanvas: public wxGLCanvas
   void cont(int cycles);
   void montr();
   
+  
  private:
   wxGLContext *context;              // OpenGL rendering context
   bool init;                         // has the OpenGL context been initialised?
@@ -147,6 +160,7 @@ class MyGLCanvas: public wxGLCanvas
   void printTime();
   void maxNumber();
 
+  void printSignals();
   
   // events
 	void mouseMoved(wxMouseEvent& event);
@@ -164,6 +178,7 @@ class MyGLCanvas: public wxGLCanvas
 	int currentTime = 0;
 	vector< vector<asignal> > sigs; 
 	vector<mons> monitoring;
+	bool * monitored[]; 
 	
 	//used for testing
 	int signals = 100;

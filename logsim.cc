@@ -50,7 +50,7 @@ bool MyApp::OnInit()
 		// it some fake ASCII ones instead
 		char **tmp1; int tmp2 = 0; glutInit(&tmp2, tmp1);
 		// Construct the GUI
-		MyFrame *frame = new MyFrame(NULL, "Logic simulator", wxDefaultPosition,  wxSize(900, 800), nmz, dmz, mmz);
+		MyFrame *frame = new MyFrame(NULL, "Logic simulator", wxDefaultPosition,  wxSize(900, 800), nmz, dmz, mmz,pmz);
 		frame->Show(true);
 		return(true); // enter the GUI event loop
 	}

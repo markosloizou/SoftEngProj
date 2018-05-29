@@ -49,6 +49,7 @@ MyGLCanvas::MyGLCanvas(wxWindow *parent, wxWindowID id, monitor* monitor_mod, na
   cyclesdisplayed = -1;
   
   montr(); // get monitors
+  
   generateSignals();//generate fake signals
   
   GetClientSize(&width, &height);// get the size of the frame
@@ -109,7 +110,7 @@ void MyGLCanvas::Render()
   if (currentTime!= 0) 
   { // draw the first monitor signal, get trace from monitor class
 
-glColor3f(0.0, 1.0, 0.0);
+	glColor3f(0.0, 1.0, 0.0);
     
     wxString text;//text to print component name
 
@@ -118,29 +119,47 @@ glColor3f(0.0, 1.0, 0.0);
 
     int max = floor(h/(height));
     
-    for(int i = start_signal; i < end_signal; i++) //TODO change start and end signal!!!!!!!
+    for(int i = start_signal; i < nmonitor; i++) //TODO change start and end signal!!!!!!!
     {
     	glColor3f(0.0, 0.0, 0.0); // color for text
     	glRasterPos2f(10,  (signal_height+space_between_signals)/2 + (i-start_signal)*(signal_height+space_between_signals));
-    	wxString name;
+    	wxString nam;
     	
-    	if()
-    	name.Printf(mons[i].name);
-    	
-    	for (int k = 0; k < name.Len(); k++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, name[k]);
+    	if(monitoring[i].pinId == nmz->cvtname("Q"))
+    	{
+    		nam.Printf("%s%s", monitoring[i].nme , ".Q");
+		}
+    	else if(monitoring[i].pinId == nmz->cvtname("QBAR"))
+    	{
+    		nam.Printf("%s%s",monitoring[i].nme , ".QBAR");
+		}
+		else
+		{
+			nam.Printf("%s",monitoring[i].nme);
+		}
+		
+    	for (int k = 0; k < nam.Len(); k++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, nam[k]);
     	
     	glColor3f(0.25, 0.25, 1.0);
+    
+    	//TODO put glBegin in for loop for changing monitors
     	glBegin(GL_LINE_STRIP);//draw line segments
-    	for(int j = startAt; j < 100; j++)
+    	for(int j = startAt; j < currentTime; j++) 
     	{
+    		glColor3f(0.25, 0.25, 1.0);
     		int l = 10.0;
-    		if(signls[i][j] == 1) l += signal_height;
+    		if(sigs[i][j] == high) l += signal_height;
+    		if(j < monitoring[i].startTime) continue;
     		
     		glVertex2f(signal_width*(j-startAt)+NAME_SPACE, l+((i-start_signal)*(signal_height+space_between_signals))); 
 		  	glVertex2f(signal_width*(j-startAt)+ NAME_SPACE + signal_width, l+((i-start_signal)*(signal_height+space_between_signals)));
+		  	
 		}    
 		glEnd();	
+	}
+	
 	} 
+	/*
   else { // draw an artificial trace
 
 	//set color
@@ -152,8 +171,9 @@ glColor3f(0.0, 1.0, 0.0);
 
 
     int max = floor(h/(height));
-    
-    for(int i = start_signal; i < end_signal; i++)
+    int i = start_signal;
+    if(i < 0) start_signal = 0;
+    for(i ; i < end_signal; i++)
     {
     	glColor3f(0.0, 0.0, 0.0); // color for text
     	glRasterPos2f(10,  (signal_height+space_between_signals)/2 + (i-start_signal)*(signal_height+space_between_signals));
@@ -167,6 +187,7 @@ glColor3f(0.0, 1.0, 0.0);
     	for(int j = startAt; j < 100; j++)
     	{
     		int l = 10.0;
+    		cout << "i = " << i << " ,j = " << j << endl;
     		if(signls[i][j] == 1) l += signal_height;
     		
     		glVertex2f(signal_width*(j-startAt)+NAME_SPACE, l+((i-start_signal)*(signal_height+space_between_signals))); 
@@ -186,10 +207,10 @@ glColor3f(0.0, 1.0, 0.0);
 		  glVertex2f(20*i+30.0, y+(j*height));
 		}
 		 
-	}*/
+	}
    
     
-  }
+  }*/
 
   // Example of how to use GLUT to draw text on the canvas
   //glColor3f(0.0, 0.0, 1.0);
@@ -213,72 +234,160 @@ void MyGLCanvas::run(int cycles)
 	currentTime = 0;
 	
 	monitoring.clear();
+	sigs.clear();
 	montr();
+	vector<asignal> sv;
 	
 	for(int i=0; i<nmonitor; i++)
 	{
 		currentMonitor = monitoring[i];
-		
+		sv.clear();
 		for(int j = 0; j < cycles; j++)
 		{
 			if(mmz->getsignaltrace(i,j,s))
 			{
-				sigs[i].push_back(s); 
+				sv.push_back(s); 
 			}
 			else
 			{
-				sigs[i].push_back(invalid_signal);
+				sv.push_back(invalid_signal);
 			}
+			//cout << "j = " << j << " , s = " << s << endl;
 		}
+		sigs.push_back(sv);
 	}
 	
 	currentTime = cycles;
+	
+	endAt = currentTime;
+	
+	startAt = endAt - floor((width-NAME_SPACE)/signal_width);
+	if(startAt < 0) startAt = 0;
+	
+	Render();
+}
+
+void MyGLCanvas::printSignals()
+{	
+	for(int i = 0; i < nmonitor; i++)
+	{
+		cout << "signal "  << i << endl;
+		for(int j = 0; j < currentTime; j++)
+		{
+			cout << sigs[i][j] << ", ";
+		}
+		cout << endl;
+	}
 }
 
 void MyGLCanvas::cont(int cycles)
 {
 
-	montr();
 	mons currentMonitor;
 	asignal s;
+	vector<asignal> sv;
+	sigs.clear();
+	
+	
+	//bool monitored_before[old_m.size()];
+	
 	
 	for(int i=0; i<nmonitor; i++)
 	{
 		currentMonitor = monitoring[i];
+		sv.clear();
 		
-		for(int j = 0; j < cycles; j++)
+		
+		for(int j = 0; j < currentTime + cycles; j++)
 		{
+			
 			if(mmz->getsignaltrace(i,j,s))
 			{
-				sigs[i].push_back(s); 
-			}
-			else
-			{
-				sigs[i].push_back(invalid_signal);
+				sv.push_back(s); 
 			}
 		}
+		
+	sigs.push_back(sv);
 	}
 	
+	
 	currentTime += cycles;
+	
+	GetClientSize(&width, &height);
+	
+	
+	endAt = currentTime;
+	
+	startAt = endAt - floor((width-NAME_SPACE)/signal_width);
+
+	if(startAt < 0) startAt = 0;
+	
+	
+	
+	Render();
+
 }
 
 void MyGLCanvas::montr()
 {
 	nmonitor = mmz->moncount();
-	
-	
-	
 	mons currentMonitor;
+	
+	//vector<mons> old_m = monitoring;
+	
+	vector<mons> newMons;
 	
 	for(int i = 0; i < nmonitor; i++)
 	{
 		currentMonitor.number = i;
 		mmz->getmonname(currentMonitor.number, currentMonitor.devId, currentMonitor.pinId);
+		
 		currentMonitor.nme = nmz->getName(currentMonitor.devId);
+		
 		currentMonitor.startTime = currentTime;
-		if(monitoring[i].number == currentMonitor.number) continue;
-		monitoring.push_back(currentMonitor);
+		
+		
+		
+		/*if(i < monitoring.size())
+		{
+			if(monitoring[i].number == currentMonitor.number) continue;
+		}*/
+		
+		newMons.push_back(currentMonitor);
 	}
+	
+	for(int i = 0; i < newMons.size();i++)
+	{
+		for(int j = 0; j < monitoring.size();j++)
+		{
+			if(newMons[i].nme == monitoring[j].nme)
+			{
+				newMons[i].startTime = monitoring[j].startTime;
+			}
+		}	
+	}
+	monitoring.clear();
+	monitoring = newMons;
+	
+	/*
+	monitored = new bool[monitoring.size()];
+	for(int i = 0; i < monitoring.size())
+	{
+		monitored[i] = false;
+	}*/
+	
+	/*
+	for(int i = 0; i < old_m.size();i++)
+	{
+		for(int j = 0; j < monitoring.size(); j++)
+		{
+			if(old[i].nme == monitoring[j].nme) 
+			{	
+				monitored[i] = true;
+				break;
+			}
+		}
+	}*/
 	
 }
 
@@ -400,8 +509,15 @@ void MyGLCanvas::OnSize(wxSizeEvent& event)
   max_number_to_print = floor((float)height/(signal_height + space_between_signals));
   //cout << "max to print: " << max_number_to_print << endl;
   end_signal = start_signal + max_number_to_print;
+  if(end_signal>nmonitor) end_signal = nmonitor;
   init = false;; // this will force the viewport and projection matrices to be reconfigured on the next paint
   
+  	
+	endAt = currentTime;
+	
+	startAt = endAt - floor((width-NAME_SPACE)/signal_width);
+	if(startAt < 0) startAt = 0;
+
 }
 
 
@@ -542,10 +658,14 @@ void MyGLCanvas::ZoomVert(int zoom)
 		start_signal = 0;
 		end_signal = start_signal+max_number_to_print;
 	}
-	if(end_signal > 100)
+	if(end_signal > nmonitor)
 	{
-		end_signal = 100;
+		end_signal = nmonitor;
 		start_signal = end_signal-max_number_to_print;
+	}
+	if(start_signal<0)
+	{
+		start_signal = 0;
 	}
   
 	Render();
@@ -616,7 +736,7 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 
 	
 	if(startAt<0) startAt = 0;
-    else if(startAt > SignalLength) startAt = SignalLength;
+    else if(startAt > currentTime) startAt = SignalLength;
 	
 	
 	int r = event.GetWheelRotation();
@@ -633,17 +753,17 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 	 }
 	
 	
+	
+	if(end_signal > nmonitor)
+	{
+		end_signal = nmonitor;
+		start_signal = end_signal-max_number_to_print;
+	}
 	if(start_signal < 0) 
 	{
 		start_signal = 0;
 		end_signal = start_signal+max_number_to_print;
 	}
-	if(end_signal > 100)
-	{
-		end_signal = 100;
-		start_signal = end_signal-max_number_to_print;
-	}
-	
 	bool mv = event.Moving();
 	 
 	if(mv)
@@ -841,7 +961,7 @@ BEGIN_EVENT_TABLE(MyFrame, wxFrame)
 END_EVENT_TABLE()
  
 MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, const wxSize& size,
-   	  names *names_mod, devices *devices_mod, monitor *monitor_mod, long style):
+   	  names *names_mod, devices *devices_mod, monitor *monitor_mod,parser* parser_mod, long style):
 	wxFrame(parent, wxID_ANY, title, pos, size, style)
 	// Constructor - initialises pointers to names, devices and monitor classes, lays out widgets
   	// using sizers
@@ -854,11 +974,134 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
   	nmz = names_mod;
   	dmz = devices_mod;
   	mmz = monitor_mod;
-  	if (nmz == NULL || dmz == NULL || mmz == NULL) {
-		cout << "Cannot operate GUI without names, devices and monitor classes" << endl;
+  	prs = parser_mod;
+  	
+  	
+  	if (nmz == NULL || dmz == NULL || mmz == NULL|| prs == NULL) {
+		cout << "Cannot operate GUI without names, devices, parser and monitor classes" << endl;
 		exit(1);
   	}
-
+  	
+  	devList = prs->getDevList();
+  	
+  	//create list of switches
+  	int c = 0;
+  	for(int i = 0; i < devList.size();i++)
+  	{
+  		if(devList[i].kind == aswitch) c++ ;
+  	}
+  	switch_list = new wxString[c];
+  	c = 0;
+  	for(int i = 0; i < devList.size();i++)
+  	{
+  		if(devList[i].kind == aswitch)
+  		{
+  			switch_list[c] =  wxString(devList[i].Name);
+  			c++;
+  		}
+  	}
+  	
+  	//create toggle list
+  	toggle_list = new wxCheckListBox(right_button_window, SWITCH_LISTBOX_ID, wxDefaultPosition, wxSize(125, 95), c, switch_list);
+  	
+  	//check switches that have initial state = 0
+  	c = 0;
+  	for(int i = 0; i < devList.size();i++)
+  	{
+  		if(devList[i].kind == aswitch)
+  		{
+  			if(devList[i].initState == 1)
+  			{
+  				toggle_list->Check(c,true);
+  			}
+  			c++;
+  		}
+  	}	
+  	
+  	//create device list for monitoring
+  	c = 0;
+  	for(int i= 0; i<devList.size(); i++)
+  	{
+  		c++;
+  		if(devList[i].kind == dtype) c++;
+  	}
+  	
+  	monitor_list = new wxString[c];
+  	
+  	
+  	
+  	for(int i = 0; i < devList.size();i++)
+  	{
+  		monDev m;
+  		if(devList[i].kind != dtype)
+  		{
+  			monitor_list[i] = wxString(devList[i].Name);
+  			m.devId = nmz->cvtname(devList[i].Name);
+  			m.pinId = -1;
+  			MList.push_back(m);
+		}
+		else
+		{
+			string s;
+			string sbar;
+			
+			s = devList[i].Name;
+			sbar = s + ".QBAR";
+			s = s + ".Q";
+			monitor_list[i] = wxString(s);
+			monitor_list[i+1] = wxString(sbar);
+			m.devId = nmz->cvtname(devList[i].Name);
+			m.pinId = nmz->cvtname("Q");
+			MList.push_back(m);
+			
+			m.pinId = nmz->cvtname("QBAR");
+			MList.push_back(m);
+			i++;
+		}
+		
+  	}
+  	
+  	
+  	monitor_list1 = new wxCheckListBox(right_button_window, MONITOR_LISTBOX_ID, wxDefaultPosition, wxSize(125, 95), devList.size(), monitor_list);
+  	
+  	
+  	//check monitored devices
+  	for(int i =0; i< devList.size();i++)
+  	{
+  		if(devList[i].isMonitored == true)
+  		{
+  			if(devList[i].kind != dtype)
+  			{
+  				monitor_list1 ->Check(i,true);
+			}
+			else if( devList[i].bar == false)
+			{
+				monitor_list1 ->Check(i,true);
+				i++;
+			}
+			else
+			{
+				monitor_list1 ->Check(i+1,true);
+				i++;
+			}
+  		}
+  		else if(devList[i].kind == dtype)
+  		{
+  			i++;
+  		}
+  	}
+  	
+  	action_list = new wxString[1]{wxT("1: Initialised program")};
+  	action_list1 = new wxListBox(dialog_window, wxID_ANY, wxDefaultPosition, wxSize(-1, 72), 1, action_list);
+  	
+  	/*switch_list = new wxString[6]{wxT("SW1"), wxT("SW2"), wxT("SW3"), wxT("SW4"), wxT("SW5"), wxT("SW6")};
+  	toggle_list = new wxCheckListBox(right_button_window, SWITCH_LISTBOX_ID, wxDefaultPosition, wxSize(125, 95), 6, switch_list);  	
+  	monitor_list = new wxString[6]{wxT("M1"), wxT("M2"), wxT("M3"), wxT("M4"), wxT("M5"), wxT("M6")};
+	monitor_list1 = new wxCheckListBox(right_button_window, MONITOR_LISTBOX_ID, wxDefaultPosition, wxSize(125, 95), 6, monitor_list);
+  	action_list = new wxString[1]{wxT("1: Initialised program")};
+  	action_list1 = new wxListBox(dialog_window, wxID_ANY, wxDefaultPosition, wxSize(-1, 72), 1, action_list);*/
+  	
+	devList = prs->getDevList();
 	// Set up top menu bar
 	
 	fileMenu->Append(MY_FILE_RUN_ID, "&Run \tCtrl-r");
@@ -1048,17 +1291,46 @@ void MyFrame::OnSpin(wxSpinEvent &event)
 
 void MyFrame::SwitchList(wxCommandEvent &event)
 {
-
+	bool ok;
+	name devid;
+	asignal sg;
+	
 	string switch_str;
 	int switch_index = event.GetInt();
 	string switch_choice = string(switch_list[switch_index].mb_str());
+	
+	devid = nmz->cvtname(switch_choice);
+	
 	if(toggle_list->IsChecked(switch_index))
 	{
-		switch_str = "Switch " + switch_choice + " toggled on";
+		sg = high;
+	}
+	else sg = low;
+	
+	
+	dmz->setswitch(devid,sg, ok);
+	
+	if(ok)
+	{
+		if(toggle_list->IsChecked(switch_index))
+		{
+			switch_str = "Switch " + switch_choice + " toggled on";
+		}
+		else
+		{
+			switch_str = "Switch " + switch_choice + " toggled off";
+		}
 	}
 	else
 	{
-		switch_str = "Switch " + switch_choice + " toggled off";
+		if(toggle_list->IsChecked(switch_index))
+		{
+			switch_str = "Could not toggle switch " + switch_choice + " on";
+		}
+		else
+		{
+			switch_str = "Could not toggle switch " + switch_choice + " off";
+		}
 	}
 	print_action(switch_str);
 } 
@@ -1070,14 +1342,38 @@ void MyFrame::MonitorList(wxCommandEvent &event)
 	string monitor_str;
 	int monitor_index = event.GetInt();
 	string monitor_choice = string(monitor_list[monitor_index].mb_str());
+	
+	bool ok;
+	
 	if(monitor_list1->IsChecked(monitor_index))
 	{
-		monitor_str = "Added monitor to " + monitor_choice;
+		//device = nmz->cvtname(monitor_str);
+		//deviceOut = -1; //Again, not very obvious...
+
+		//nmz -> printEntries();  
+		mmz->makemonitor(MList[monitor_index].devId,MList[monitor_index].pinId,ok);
+		if(ok)
+		{
+			monitor_str = "Added monitor to " + monitor_choice;
+		}
+		else
+		{
+			monitor_str = "Could not add monitor to " + monitor_choice;
+		}
 	}
 	else
 	{
-		monitor_str = "Removed monitor from " + monitor_choice;
+		mmz->remmonitor(MList[monitor_index].devId,MList[monitor_index].pinId,ok);
+		if(ok)
+		{
+			monitor_str = "Removed monitor from " + monitor_choice;
+		}
+		else
+		{
+			monitor_str = "Could not remove monitor from " + monitor_choice;
+		}
 	}
+	
 	print_action(monitor_str);
 	canvas->montr();
 }

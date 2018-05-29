@@ -15,10 +15,13 @@ using namespace std;
 
 typedef struct 			//Device structure to store all defined devices to facilitate error correcting
 	{		
-	string name;
+	string Name;
 	int id;
 	devicekind kind;
 	int input_number;
+	int initState;
+	bool isMonitored;
+	bool bar = false;
 	} dev;
 	
 typedef struct 			//Connections structure to check if the device input has already been used
@@ -118,6 +121,8 @@ class parser {
 		parser (network* network_mod, devices* devices_mod,
 		  monitor* monitor_mod, Scanner* scanner_mod, names* names_mod);
 		/* the constructor takes pointers to various other classes as parameters */
+		
+		vector<dev> getDevList();
 };
 
 #endif /* parser_h */

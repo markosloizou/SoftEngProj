@@ -50,6 +50,7 @@ class Table{
 		
 		//Functions used for debugging. Prints all the entries of the table
 		void print_entries();
+		
 };	
 
 
@@ -78,6 +79,8 @@ public:
 
   int namelength (name id);
     /* Returns length ie number of characters in given name                */
+    
+  string getName(name id);
     
   void printEntries();
 

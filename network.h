@@ -5,7 +5,7 @@
 
 /* Network specification */
 
-typedef enum {falling, low, rising, high} asignal;
+typedef enum {invalid_signal = -1,falling, low, rising, high} asignal;
 typedef enum {aswitch, aclock, andgate, nandgate, orgate,
 	      norgate, xorgate, dtype, baddevice} devicekind;
 

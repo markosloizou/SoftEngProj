@@ -402,9 +402,11 @@ bool parser::readSwitch(char &ch)			//Function that defines Switches
 			  		
 			  		dev d;
 			  		d.id = id;
-			  		d.name = str;
+			  		d.Name = str;
 			  		d.kind = aswitch;
 			  		d.input_number = 0;
+			  		d.initState = setting;
+			  		d.isMonitored = false;
 			  		devList.push_back(d);		//Store devices internally in custom data structure for later use (determine if there are unused devices etc)
 			  		
 			  		if(setting == 0)
@@ -521,7 +523,9 @@ bool parser::readFixedDevice(char &ch, devicekind kind)			//Function that define
 			dev d;
 			d.id = id;
 			d.kind = kind;
-			d.name = str;
+			d.Name = str;
+			d.initState = -1;
+			d.isMonitored = false;
 			if(kind == dtype)
 			{
 				d.input_number = 4;
@@ -678,7 +682,9 @@ bool parser::readVariableDevice(char& ch, devicekind kind)			//Function that def
 			dev d;							//Store device internally
 			d.id = id;
 			d.kind = kind;
-			d.name = str;
+			d.Name = str;
+			d.initState = -1;
+			d.isMonitored = false;
 			d.input_number = number;
 			if(kind == aclock) d.input_number = 0;
 			devList.push_back(d);
@@ -1148,8 +1154,8 @@ bool parser::createMonitor(char &ch)			//Function to set up monitor points on an
 			
 			device = nmz->cvtname(str);
 			deviceOut = -1; //Again, not very obvious...
-			
 			mmz->makemonitor(device,deviceOut,ok);
+			
 			
 			if(!ok)
 			{
@@ -1161,6 +1167,19 @@ bool parser::createMonitor(char &ch)			//Function to set up monitor points on an
 			else
 			{
 				if (debugging) cout << "Monitoring " << str << endl;
+				
+				for(int i = 0; i < devList.size();i++)
+				{
+					if(devList[i].Name == str)
+					{
+						devList[i].isMonitored = true;
+						if(devList[i].kind == dtype && deviceOut == nmz->cvtname("QBAR"))
+						{
+							devList[i].bar = true;
+						}
+					}
+					
+				}
 			}
 				
 		}
@@ -1196,7 +1215,7 @@ devicekind parser::getKind(string identifier)		//Function to retrive internal re
 {
 	for(int i = 0; i < devList.size();i++)
 	{
-		if(devList[i].name == identifier)
+		if(devList[i].Name == identifier)
 		{
 			return devList[i].kind;
 		}
@@ -1601,7 +1620,11 @@ void parser::proceed(char& cur_char, bool& eof) 	//Move to next semicolumn
  	}
 }
 
+vector<dev> parser::getDevList(){
+	return devList;
+}
 
+/*
 // main function used for debugging
 int main()
 {
@@ -1619,4 +1642,4 @@ int main()
 	
 	return 0;
 }
-
+*/

@@ -28,6 +28,10 @@ void names::writename (name id)
   cout << table[(int) id];
 }
 
+string names::getName(name id)
+{
+	return table[(int) id];
+}
 int names::namelength (name id)
 {
   /* over to you */
