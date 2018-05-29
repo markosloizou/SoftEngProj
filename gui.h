@@ -12,10 +12,22 @@
 #include "devices.h"
 #include "monitor.h"
 
+typedef struct 
+{
+	name devId;
+	name pinId;
+	devicekind kind;
+	int number;
+	string nme;
+	int startTime;
+} mons;
+
 enum { 
 	MY_SPINCNTRL_ID = wxID_HIGHEST + 1,
   	MY_TEXTCTRL_ID,
   	MY_RUN_BUTTON_ID,
+  	MY_FILE_RUN_ID,
+  	MY_FILE_CONTINUE_ID,
   	TOOLBAR_ID,
   	RUN_TOOLBAR_ID,
   	CONTINUE_TOOLBAR_ID,
@@ -106,13 +118,16 @@ class MyGLCanvas: public wxGLCanvas
   MyGLCanvas(wxWindow *parent, wxWindowID id = wxID_ANY, monitor* monitor_mod = NULL, names* names_mod = NULL,
 	     const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize, long style = 0,
 	     const wxString& name = "MyGLCanvas", const wxPalette &palette=wxNullPalette); // constructor
-  void Render(wxString example_text = "", int cycles = -1); // function to draw canvas contents
+  void Render(); // function to draw canvas contents
   
   void ShowGrid(bool show);
   void ZoomVert(int zoom);
   void ZoomHor(int zoom);
   void save_canvas();
   void mirror_char(unsigned char *pixels, int width, int height);
+  void run(int cycles);
+  void cont(int cycles);
+  void montr();
   
  private:
   wxGLContext *context;              // OpenGL rendering context
@@ -143,11 +158,21 @@ class MyGLCanvas: public wxGLCanvas
 	void keyPressed(wxKeyEvent& event);
 	void keyReleased(wxKeyEvent& event);
 	void dClick(wxKeyEvent& event);
+	
+	//keep track of monitored signals
+	int nmonitor = 0;
+	int currentTime = 0;
+	vector< vector<asignal> > sigs; 
+	vector<mons> monitoring;
+	
+	//used for testing
 	int signals = 100;
 	int SignalLength = 100;
 	vector< vector<int> > signls; 
 	void generateSignals();
 	
+	
+	//time to start dispaying the signal
 	int start_signal = 0;
 	int end_signal = 10;
 	

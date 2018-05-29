@@ -9,6 +9,7 @@
 #define SIGNAL_WIDTH 30
 #define SIGNAL_SPACE 20
 #define NAME_SPACE 60
+#define INVALID_SIGNAL -1
 using namespace std;
 
 // MyGLCanvas ////////////////////////////////////////////////////////////////////////////////////
@@ -47,6 +48,7 @@ MyGLCanvas::MyGLCanvas(wxWindow *parent, wxWindowID id, monitor* monitor_mod, na
   zoom = 1.0;
   cyclesdisplayed = -1;
   
+  montr(); // get monitors
   generateSignals();//generate fake signals
   
   GetClientSize(&width, &height);// get the size of the frame
@@ -71,7 +73,7 @@ MyGLCanvas::MyGLCanvas(wxWindow *parent, wxWindowID id, monitor* monitor_mod, na
 	mouse_right = false;
 }
 
-void MyGLCanvas::Render(wxString example_text, int cycles)
+void MyGLCanvas::Render()
   // Draws canvas contents - the following example writes the string "example text" onto the canvas
   // and draws a signal trace. The trace is artificial if the simulator has not yet been run.
   // When the simulator is run, the number of cycles is passed as a parameter and the first monitor
@@ -104,21 +106,42 @@ void MyGLCanvas::Render(wxString example_text, int cycles)
   if(mouse_left == true || mouse_right == true) printRectangle();
   printTime();
 
-  if ((cyclesdisplayed >= 0) && (mmz->moncount() > 0)) { // draw the first monitor signal, get trace from monitor class
+  if (currentTime!= 0) 
+  { // draw the first monitor signal, get trace from monitor class
 
-    glColor3f(1.0, 0.0, 0.0);
-    glBegin(GL_LINE_STRIP);
-    for (i=0; i<cyclesdisplayed; i++) {
-      if (mmz->getsignaltrace(0, i, s)) {
-		if (s==low) y = 10.0;
-		if (s==high) y = 30.0;
-		glVertex2f(20*i+10.0, y); 
-		glVertex2f(20*i+30.0, y);
-      }
-    }
-    glEnd();
+glColor3f(0.0, 1.0, 0.0);
+    
+    wxString text;//text to print component name
 
-  } else { // draw an artificial trace
+  	wxPaintDC dc(this); // required for correct refreshing under MS windows
+
+
+    int max = floor(h/(height));
+    
+    for(int i = start_signal; i < end_signal; i++) //TODO change start and end signal!!!!!!!
+    {
+    	glColor3f(0.0, 0.0, 0.0); // color for text
+    	glRasterPos2f(10,  (signal_height+space_between_signals)/2 + (i-start_signal)*(signal_height+space_between_signals));
+    	wxString name;
+    	
+    	if()
+    	name.Printf(mons[i].name);
+    	
+    	for (int k = 0; k < name.Len(); k++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, name[k]);
+    	
+    	glColor3f(0.25, 0.25, 1.0);
+    	glBegin(GL_LINE_STRIP);//draw line segments
+    	for(int j = startAt; j < 100; j++)
+    	{
+    		int l = 10.0;
+    		if(signls[i][j] == 1) l += signal_height;
+    		
+    		glVertex2f(signal_width*(j-startAt)+NAME_SPACE, l+((i-start_signal)*(signal_height+space_between_signals))); 
+		  	glVertex2f(signal_width*(j-startAt)+ NAME_SPACE + signal_width, l+((i-start_signal)*(signal_height+space_between_signals)));
+		}    
+		glEnd();	
+	} 
+  else { // draw an artificial trace
 
 	//set color
     glColor3f(0.0, 1.0, 0.0);
@@ -179,6 +202,84 @@ void MyGLCanvas::Render(wxString example_text, int cycles)
   
   glFlush();
   SwapBuffers();
+}
+
+
+void MyGLCanvas::run(int cycles)
+{
+	
+	mons currentMonitor;
+	asignal s;
+	currentTime = 0;
+	
+	monitoring.clear();
+	montr();
+	
+	for(int i=0; i<nmonitor; i++)
+	{
+		currentMonitor = monitoring[i];
+		
+		for(int j = 0; j < cycles; j++)
+		{
+			if(mmz->getsignaltrace(i,j,s))
+			{
+				sigs[i].push_back(s); 
+			}
+			else
+			{
+				sigs[i].push_back(invalid_signal);
+			}
+		}
+	}
+	
+	currentTime = cycles;
+}
+
+void MyGLCanvas::cont(int cycles)
+{
+
+	montr();
+	mons currentMonitor;
+	asignal s;
+	
+	for(int i=0; i<nmonitor; i++)
+	{
+		currentMonitor = monitoring[i];
+		
+		for(int j = 0; j < cycles; j++)
+		{
+			if(mmz->getsignaltrace(i,j,s))
+			{
+				sigs[i].push_back(s); 
+			}
+			else
+			{
+				sigs[i].push_back(invalid_signal);
+			}
+		}
+	}
+	
+	currentTime += cycles;
+}
+
+void MyGLCanvas::montr()
+{
+	nmonitor = mmz->moncount();
+	
+	
+	
+	mons currentMonitor;
+	
+	for(int i = 0; i < nmonitor; i++)
+	{
+		currentMonitor.number = i;
+		mmz->getmonname(currentMonitor.number, currentMonitor.devId, currentMonitor.pinId);
+		currentMonitor.nme = nmz->getName(currentMonitor.devId);
+		currentMonitor.startTime = currentTime;
+		if(monitoring[i].number == currentMonitor.number) continue;
+		monitoring.push_back(currentMonitor);
+	}
+	
 }
 
 void MyGLCanvas::printRectangle()
@@ -289,7 +390,7 @@ void MyGLCanvas::OnPaint(wxPaintEvent& event)
   wxPaintDC dc(this); // required for correct refreshing under MS windows
   GetClientSize(&w, &h);
   text.Printf("Canvas redrawn by OnPaint event handler, canvas size is %d by %d", w, h);
-  Render(text);
+  Render();
 }
 
 void MyGLCanvas::OnSize(wxSizeEvent& event)
@@ -308,6 +409,7 @@ void MyGLCanvas::OnSize(wxSizeEvent& event)
 void MyGLCanvas::ShowGrid(bool show)
 {
 	showGrid = show;
+	Render();
 }
 
 void MyGLCanvas::printTime()
@@ -317,8 +419,8 @@ void MyGLCanvas::printTime()
 	{
 		if(isSmall == true && (i%5) != 0) continue; //continue to next cycle if the size is small and i is not a multiple of 5
 		
-		if(isSmall) glRasterPos2f(NAME_SPACE + (i-startAt)*signal_width - signal_width, height - 10);
-		else glRasterPos2f(NAME_SPACE + (i-startAt)*signal_width - signal_width/2, height - 10);
+		if(isSmall) glRasterPos2f(NAME_SPACE + (i-startAt)*signal_width - 7.5, height - 10);
+		else glRasterPos2f(NAME_SPACE + (i-startAt)*signal_width - 7.5, height - 10);
 		
 		wxString name;
 		name.Printf( "%d", i);
@@ -555,19 +657,16 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 		{
 			mouse_left = true;
 			mouse_right = false;
-			Render(str,-1);
 		}
 		else if(last_x > width*0.85) 
 		{
 			mouse_left = false;
 			mouse_right = true;
-			Render(str, -1);
 		}
 		else
 		{
 			mouse_left = false;
 			mouse_right = false;
-			Render(str,-1);
 		}
 	}
 	
@@ -577,7 +676,7 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 		mouse_right = false;
 	 }
 	
-	 Render(str,-1);
+	 Render();
 /*
   GetClientSize(&w, &h);
   if (event.ButtonDown()) {
@@ -727,6 +826,8 @@ BEGIN_EVENT_TABLE(MyFrame, wxFrame)
 	EVT_MENU(SHOW_GRID_ID, MyFrame::ShowGrid)
 	EVT_MENU(SHOW_SETTINGS_ID, MyFrame::ShowSettings)
 	EVT_MENU(SHOW_DIALOG_ID, MyFrame::ShowDialog)
+	EVT_MENU(MY_FILE_RUN_ID, MyFrame::OnRunButton)
+	EVT_MENU(MY_FILE_CONTINUE_ID, MyFrame::OnContinueButton)
 	EVT_SPINCTRL(MY_SPINCNTRL_ID, MyFrame::OnSpin)
 	EVT_CHECKLISTBOX(SWITCH_LISTBOX_ID, MyFrame::SwitchList)
 	EVT_CHECKLISTBOX(MONITOR_LISTBOX_ID, MyFrame::MonitorList)
@@ -759,11 +860,14 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
   	}
 
 	// Set up top menu bar
-
+	
+	fileMenu->Append(MY_FILE_RUN_ID, "&Run \tCtrl-r");
+	fileMenu->Append(MY_FILE_CONTINUE_ID,"&Continue\tCtrl-C");
 	fileMenu->Append(wxID_ABOUT, "&About");
-	fileMenu->Append(wxID_EXIT, "&Quit");
+	fileMenu->Append(wxID_EXIT, "&Quit\tCtrl-Q");
 	editMenu->Append(wxID_ANY, "&Placeholder");
-	viewMenu->Append(SHOW_GRID_ID, "&Hide Grid");
+	viewMenu->Append(SHOW_GRID_ID, "&Hide Grid\tCtrl-g");
+	
 	windowMenu->Append(SHOW_SETTINGS_ID, "&Hide Settings Window");
 	windowMenu->Append(SHOW_DIALOG_ID, "&Hide Dialog Window");
 	wxMenuBar *menuBar = new wxMenuBar;
@@ -916,7 +1020,7 @@ void MyFrame::ShowSettings(wxCommandEvent &event)
 	show_settings = !show_settings;
 }
 
-// Show/Hide the bottom dialog box showing the actions carried out by the user since the program was started
+// Show/Hide the bottom diarunnetworklog box showing the actions carried out by the user since the program was started
 
 void MyFrame::ShowDialog(wxCommandEvent &event)
 {
@@ -975,6 +1079,7 @@ void MyFrame::MonitorList(wxCommandEvent &event)
 		monitor_str = "Removed monitor from " + monitor_choice;
 	}
 	print_action(monitor_str);
+	canvas->montr();
 }
 
 // Functions to zoom vertically and horizontally on the canvas controlled by two separate sliders
@@ -1045,12 +1150,17 @@ void MyFrame::OnRunButton(wxCommandEvent &event)
   	
   	string run_str = "Simulation started for " + to_string(spin->GetValue()) + " cycles";
   	print_action(run_str);
+  	
+  	canvas->run(spin->GetValue());
 }
 
 void MyFrame::OnContinueButton(wxCommandEvent &event)
 {
+	runnetwork(spin->GetValue());
 	string continue_str = "Simulation continued for an additional " + to_string(spin->GetValue()) + " cycles";
 	print_action(continue_str);
+		
+	canvas->cont(spin->GetValue());	
 }
 
 // Event handler for saving the canvas contents which calls a function within the GLCanvas. The image is saved as a PNG
