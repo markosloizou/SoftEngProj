@@ -1140,6 +1140,19 @@ bool parser::createMonitor(char &ch)			//Function to set up monitor points on an
 			else
 			{	
 				if (debugging) cout << "Monitoring " << deviceName << "." << str << endl;
+				
+				for(int i = 0; i < devList.size();i++)
+				{
+					if(devList[i].Name == deviceName)
+					{
+						devList[i].isMonitored = true;
+						if(devList[i].kind == dtype && deviceOut == nmz->cvtname("QBAR"))
+						{
+							devList[i].bar = true;
+						}
+					}
+					
+				}
 			}
 		}	
 		else

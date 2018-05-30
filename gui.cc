@@ -8,7 +8,7 @@
 #define SIGNAL_HEIGHT 30
 #define SIGNAL_WIDTH 30
 #define SIGNAL_SPACE 20
-#define NAME_SPACE 60
+#define NAME_SPACE 120
 #define INVALID_SIGNAL -1
 using namespace std;
 
@@ -34,7 +34,7 @@ END_EVENT_TABLE()
   
 int wxglcanvas_attrib_list[5] = {WX_GL_RGBA, WX_GL_DOUBLEBUFFER, WX_GL_DEPTH_SIZE, 16, 0};
 
-MyGLCanvas::MyGLCanvas(wxWindow *parent, wxWindowID id, monitor* monitor_mod, names* names_mod, const wxPoint& pos, 
+MyGLCanvas::MyGLCanvas(wxWindow *parent,MyFrame *f ,wxWindowID id, monitor* monitor_mod, names* names_mod, const wxPoint& pos, 
 		       const wxSize& size, long style, const wxString& name, const wxPalette& palette):
   wxGLCanvas(parent, id, wxglcanvas_attrib_list, pos, size, style, name, palette)
   // Constructor - initialises private variables
@@ -42,11 +42,14 @@ MyGLCanvas::MyGLCanvas(wxWindow *parent, wxWindowID id, monitor* monitor_mod, na
   context = new wxGLContext(this);
   mmz = monitor_mod;
   nmz = names_mod;
+  frame = f;
   init = false;
   pan_x = 0;
   pan_y = 0;
   zoom = 1.0;
   cyclesdisplayed = -1;
+  
+  kState = new wxKeyboardState(true,true,true,true);
   
   montr(); // get monitors
   
@@ -85,9 +88,9 @@ void MyGLCanvas::Render()
   asignal s;
   
   int w, h;
-  GetClientSize(&w, &h);
+  GetClientSize(&width, &height);
   
-  
+	
   
    max_number_to_print = floor(height/(signal_height + space_between_signals));
 
@@ -122,7 +125,14 @@ void MyGLCanvas::Render()
     for(int i = start_signal; i < nmonitor; i++) //TODO change start and end signal!!!!!!!
     {
     	glColor3f(0.0, 0.0, 0.0); // color for text
+    	if(signal_height/SIGNAL_HEIGHT < 0.37)
+    	{
+    	glRasterPos2f(10,  (signal_height+space_between_signals)/2 + (i-start_signal)*(signal_height+space_between_signals)+5);
+    	}
+    	else
+    	{
     	glRasterPos2f(10,  (signal_height+space_between_signals)/2 + (i-start_signal)*(signal_height+space_between_signals));
+    	}
     	wxString nam;
     	
     	if(monitoring[i].pinId == nmz->cvtname("Q"))
@@ -138,8 +148,15 @@ void MyGLCanvas::Render()
 			nam.Printf("%s",monitoring[i].nme);
 		}
 		
-    	for (int k = 0; k < nam.Len(); k++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, nam[k]);
-    	
+		
+		if(signal_height/SIGNAL_HEIGHT < 0.65)
+		{
+    		for (int k = 0; k < nam.Len(); k++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, nam[k]);
+    	}
+    	else
+    	{
+    		for (int k = 0; k < nam.Len(); k++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, nam[k]);
+    	}
     	glColor3f(0.25, 0.25, 1.0);
     
     	//TODO put glBegin in for loop for changing monitors
@@ -148,6 +165,8 @@ void MyGLCanvas::Render()
     	{
     		glColor3f(0.25, 0.25, 1.0);
     		int l = 10.0;
+    		if(sigs.size() < i) break;
+    		if(sigs[i].size() < j) continue;
     		if(sigs[i][j] == high) l += signal_height;
     		if(j < monitoring[i].startTime) continue;
     		
@@ -316,12 +335,14 @@ void MyGLCanvas::cont(int cycles)
 	GetClientSize(&width, &height);
 	
 	
-	endAt = currentTime;
+	//endAt = currentTime;
 	
-	startAt = endAt - floor((width-NAME_SPACE)/signal_width);
-
-	if(startAt < 0) startAt = 0;
+	//startAt = endAt - floor((width-NAME_SPACE)/signal_width);
 	
+	//if(startAt < 0) startAt = 0;
+	endAt += cycles;
+	
+	if(endAt - floor((width-NAME_SPACE)/signal_width) > startAt) startAt = endAt -floor((width-NAME_SPACE)/signal_width);
 	
 	
 	Render();
@@ -360,7 +381,7 @@ void MyGLCanvas::montr()
 	{
 		for(int j = 0; j < monitoring.size();j++)
 		{
-			if(newMons[i].nme == monitoring[j].nme)
+			if((newMons[i].nme == monitoring[j].nme) && (newMons[i].pinId == monitoring[j].pinId))
 			{
 				newMons[i].startTime = monitoring[j].startTime;
 			}
@@ -401,12 +422,12 @@ void MyGLCanvas::printRectangle()
 	{
 		x1 = 0;
 		y1 = 0;
-		x2 = 60.0;
+		x2 = NAME_SPACE;
 		y2 = height;
 	}
 	else
 	{
-		x1 = width - 60.0;
+		x1 = width - NAME_SPACE;
 		y1 = 0;
 		x2 = width;
 		y2 = height;
@@ -531,7 +552,7 @@ void MyGLCanvas::ShowGrid(bool show)
 void MyGLCanvas::printTime()
 {
 	glColor3f(240.0/255.0, 12.0/255.0, 39.0/255.0); //light gray color
-	for(int i = startAt; i < floor(((float)width-60.0)/signal_width)+1+startAt; i ++)
+	for(int i = startAt; i < floor(((float)width-NAME_SPACE)/signal_width)+1+startAt; i ++)
 	{
 		if(isSmall == true && (i%5) != 0) continue; //continue to next cycle if the size is small and i is not a multiple of 5
 		
@@ -548,19 +569,20 @@ void MyGLCanvas::printGrid()
 {
 	  
 	GetClientSize(&width, &height);
-	for(int i = 0; i < floor(((float)width-60.0)/signal_width)+1; i ++)
+	for(int i = 0; i < floor(((float)width-NAME_SPACE)/signal_width)+1; i ++)
 	{
 		
     	glColor3f(0.90, 0.90, 0.90); //light gray color
     	if( i%5 == 0 && isSmall == true) glColor3f(0.5, 0.5, 0.5);
 		//draw time ticks
 		glBegin(GL_LINE_STRIP);//draw line segments
-		glVertex2f(60.0 + i*signal_width,0);
-		glVertex2f(60.0 + i*signal_width,height);
+		glVertex2f(NAME_SPACE + i*signal_width,0);
+		glVertex2f(NAME_SPACE + i*signal_width,height);
 		glEnd();
 	}
 	
-	for(int j = 0; j < max_number_to_print;    j++)
+	//glColor3f(0.70, 0.70, 0.70); //darker light gray color
+	for(int j = 0; j < max_number_to_print+1;    j++)
 	{
 		//draw horizontal grid
 		glBegin(GL_LINE_STRIP);//draw line segments
@@ -695,7 +717,29 @@ void MyGLCanvas::ZoomHor(int zoom)
 	Render();
 }
 
+void MyGLCanvas::goToStart()
+{
+	GetClientSize(&width, &height);
+ 	
+ 	startAt = 0;
+ 	endAt = startAt + floor((width-NAME_SPACE)/signal_width);;
+ 	if(endAt > currentTime)
+ 	{
+ 		endAt = currentTime;
+ 	}
+ 	Render();
+}
 
+void MyGLCanvas::goToEnd()
+{
+	GetClientSize(&width, &height);
+
+ 	endAt = currentTime;
+ 	startAt = currentTime - floor((width-NAME_SPACE)/signal_width);;
+ 	if(startAt < 0) startAt = 0;
+ 	
+ 	Render();
+}
 
 
 void MyGLCanvas::OnMouse(wxMouseEvent& event)
@@ -732,25 +776,40 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 		}
 	}
 
-	
-
-	
 	if(startAt<0) startAt = 0;
-    else if(startAt > currentTime) startAt = SignalLength;
-	
+    else if(startAt > currentTime) startAt = currentTime;
+     
+	if(startAt >= currentTime) startAt -= 1;
+	if(startAt < 0) startAt = 0;
 	
 	int r = event.GetWheelRotation();
-	
-	if(r>0) 
+
+	if(r>0 &&  event.ControlDown() == true) 
 	{
 		end_signal += 1;
 		start_signal += 1;
 	}
-	else if(r < 0)
+	else if(r < 0  &&  event.ControlDown() == true)
 	{
 		 end_signal -=1;
 		 start_signal -=1;
-	 }
+	}
+	else if(r > 0)
+	{
+		frame->zoom(2);
+		
+		endAt = currentTime;
+		startAt = endAt - floor((width-NAME_SPACE)/signal_width);
+		if(startAt < 0) startAt = 0;
+	}
+	else if(r < 0)
+	{
+		frame->zoom(-2);
+		
+		endAt = currentTime;
+		startAt = endAt - floor((width-NAME_SPACE)/signal_width);
+		if(startAt < 0) startAt = 0;
+	}
 	
 	
 	
@@ -948,6 +1007,12 @@ BEGIN_EVENT_TABLE(MyFrame, wxFrame)
 	EVT_MENU(SHOW_DIALOG_ID, MyFrame::ShowDialog)
 	EVT_MENU(MY_FILE_RUN_ID, MyFrame::OnRunButton)
 	EVT_MENU(MY_FILE_CONTINUE_ID, MyFrame::OnContinueButton)
+	EVT_MENU(MY_FILE_SAVE_ID, MyFrame::SaveCanvas)
+	EVT_MENU(START_MENU_ID, MyFrame::OnStart)
+	EVT_MENU(END_MENU_ID, MyFrame::OnEnd)
+	EVT_MENU(ZOOM_IN_MENU_ID, MyFrame::OnZoomIn)
+	EVT_MENU(ZOOM_OUT_MENU_ID, MyFrame::OnZoomOut)
+	EVT_MENU(HELP_MENU_ID, MyFrame::ShowHelp)
 	EVT_SPINCTRL(MY_SPINCNTRL_ID, MyFrame::OnSpin)
 	EVT_CHECKLISTBOX(SWITCH_LISTBOX_ID, MyFrame::SwitchList)
 	EVT_CHECKLISTBOX(MONITOR_LISTBOX_ID, MyFrame::MonitorList)
@@ -958,6 +1023,9 @@ BEGIN_EVENT_TABLE(MyFrame, wxFrame)
 	EVT_BUTTON(MY_CONTINUE_BUTTON_ID, MyFrame::OnContinueButton)
 	EVT_TOOL(CONTINUE_TOOLBAR_ID, MyFrame::OnContinueButton)
 	EVT_TOOL(SAVE_TOOLBAR_ID, MyFrame::SaveCanvas)
+	EVT_TOOL(START_TOOLBAR_ID, MyFrame::OnStart)
+	EVT_TOOL(END_TOOLBAR_ID, MyFrame::OnEnd)
+	EVT_MOUSEWHEEL(MyFrame::OnMouse)
 END_EVENT_TABLE()
  
 MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, const wxSize& size,
@@ -970,6 +1038,7 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
   	SetIcon(wxIcon(wx_icon));
 	wxInitAllImageHandlers();
 
+	kState = new wxKeyboardState(true,true,true,true);
   	cyclescompleted = 0;
   	nmz = names_mod;
   	dmz = devices_mod;
@@ -1074,14 +1143,16 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
   			{
   				monitor_list1 ->Check(i,true);
 			}
-			else if( devList[i].bar == false)
-			{
-				monitor_list1 ->Check(i,true);
-				i++;
-			}
 			else
 			{
-				monitor_list1 ->Check(i+1,true);
+				if( devList[i].bar == false)
+				{
+					monitor_list1 ->Check(i,true);
+				}
+				if(devList[i].bar == true)
+				{
+					monitor_list1 ->Check(i+1,true);
+				}
 				i++;
 			}
   		}
@@ -1104,25 +1175,33 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
 	devList = prs->getDevList();
 	// Set up top menu bar
 	
-	fileMenu->Append(MY_FILE_RUN_ID, "&Run \tCtrl-r");
+	fileMenu->Append(MY_FILE_RUN_ID, "&Run \tCtrl-R");
 	fileMenu->Append(MY_FILE_CONTINUE_ID,"&Continue\tCtrl-C");
+	fileMenu->Append(MY_FILE_SAVE_ID,"&Save As...\tCtrl-S");
+	fileMenu->AppendSeparator();
+	fileMenu->Append(HELP_MENU_ID, "&Help\tCtrl-H");
 	fileMenu->Append(wxID_ABOUT, "&About");
 	fileMenu->Append(wxID_EXIT, "&Quit\tCtrl-Q");
-	editMenu->Append(wxID_ANY, "&Placeholder");
-	viewMenu->Append(SHOW_GRID_ID, "&Hide Grid\tCtrl-g");
+	
+	viewMenu->Append(START_MENU_ID,"Go To &Start\tShift-Ctrl-S");
+	viewMenu->Append(END_MENU_ID,"Go To &End\tShift-Ctrl-E");
+	viewMenu->AppendSeparator();
+	viewMenu->Append(ZOOM_IN_MENU_ID,"Zoom In\tCtrl-Z");
+	viewMenu->Append(ZOOM_OUT_MENU_ID,"Zoom Out\tShift-Ctrl-Z");
+	viewMenu->AppendSeparator();
+	viewMenu->Append(SHOW_GRID_ID, "Hide &Grid\tCtrl-G");
 	
 	windowMenu->Append(SHOW_SETTINGS_ID, "&Hide Settings Window");
 	windowMenu->Append(SHOW_DIALOG_ID, "&Hide Dialog Window");
 	wxMenuBar *menuBar = new wxMenuBar;
 	menuBar->Append(fileMenu, "&File");
-	menuBar->Append(editMenu, "&Edit");
 	menuBar->Append(viewMenu, "&View");
 	menuBar->Append(windowMenu, "&Window");
 	SetMenuBar(menuBar);
 	
 	// Set up canvas
   
-	canvas = new MyGLCanvas(left_canvas_window, wxID_ANY, monitor_mod, names_mod);
+	canvas = new MyGLCanvas(left_canvas_window,this ,wxID_ANY, monitor_mod, names_mod);
 	
 	canvas_sizer->Add(canvas, 1, wxEXPAND);
 	
@@ -1185,14 +1264,18 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
   	
 	// Set up toolbar
 	
-	wxBitmap play_icon(wxT("play1.png"), wxBITMAP_TYPE_PNG);
+	wxBitmap play_icon(wxT("play.png"), wxBITMAP_TYPE_PNG);
 	wxBitmap continue_icon(wxT("continue.png"), wxBITMAP_TYPE_PNG);
 	wxBitmap save_icon(wxT("save.png"), wxBITMAP_TYPE_PNG);
+	wxBitmap start_icon(wxT("start.png"),wxBITMAP_TYPE_PNG);
+	wxBitmap end_icon(wxT("end.png"),wxBITMAP_TYPE_PNG);
 	wxToolBar *top_toolbar = new wxToolBar(this, TOOLBAR_ID);
 	
-	top_toolbar->AddTool(RUN_TOOLBAR_ID, wxT("Play"), play_icon);
-	top_toolbar->AddTool(CONTINUE_TOOLBAR_ID, wxT("Continue"), continue_icon);
-	top_toolbar->AddTool(SAVE_TOOLBAR_ID, wxT("Save Circuit"), save_icon);
+	top_toolbar->AddTool(RUN_TOOLBAR_ID, wxT("Play"), play_icon,"Run" , wxITEM_NORMAL );
+	top_toolbar->AddTool(CONTINUE_TOOLBAR_ID, wxT("Continue"), continue_icon, "Continue", wxITEM_NORMAL );
+	top_toolbar->AddTool(START_TOOLBAR_ID,wxT("Go To Start"), start_icon, "Go To Start",  wxITEM_NORMAL );
+	top_toolbar->AddTool(END_TOOLBAR_ID,wxT("Go To End"), end_icon, "Go To End",  wxITEM_NORMAL );
+	top_toolbar->AddTool(SAVE_TOOLBAR_ID, wxT("Save Circuit"), save_icon, "Save As",  wxITEM_NORMAL);
 	top_toolbar->Realize();
 	
 	toolbar_sizer->Add(top_toolbar, 0, wxEXPAND);	
@@ -1237,11 +1320,11 @@ void MyFrame::ShowGrid(wxCommandEvent &event)
 	canvas->ShowGrid(!show_grid);
 	if(show_grid)
 	{
-	viewMenu->SetLabel(SHOW_GRID_ID, "&Show Grid");
+	viewMenu->SetLabel(SHOW_GRID_ID, "Show &Grid\tCtrl-G");
 	}
 	else
 	{
-	viewMenu->SetLabel(SHOW_GRID_ID, "&Hide Grid");
+	viewMenu->SetLabel(SHOW_GRID_ID, "Hide &Grid\tCtrl-G");
 	}
 	show_grid = !show_grid;
 }
@@ -1466,6 +1549,213 @@ void MyFrame::SaveCanvas(wxCommandEvent &event)
 	canvas->save_canvas();
 }
 
+void MyFrame::OnStart(wxCommandEvent &event)
+{
+	canvas->goToStart();
+}
+
+
+void MyFrame::OnEnd(wxCommandEvent &event)
+{
+	canvas->goToEnd();
+}
+
+void MyFrame::OnZoomIn(wxCommandEvent &event)
+{
+	int vert_sliderpos = vert_zoom_slider->GetValue();
+	int horz_sliderpos = horz_zoom_slider->GetValue();
+	vert_sliderpos += 5;
+	horz_sliderpos += 5;
+	if(vert_sliderpos > 100) vert_sliderpos = 100;
+	if(horz_sliderpos > 100) horz_sliderpos=100;
+	
+	vert_zoom_slider->SetValue(vert_sliderpos);
+	horz_zoom_slider->SetValue(horz_sliderpos);
+		
+	float horz_zoom_fl;
+  	int horz_zoom_int;
+
+  	if(horz_sliderpos <= 50) 
+  	{
+    	horz_zoom_fl = (1.5*horz_sliderpos)+25.0;
+    	horz_zoom_int = floor(horz_zoom_fl);
+  	}
+
+  	if(horz_sliderpos > 50) 
+  	{
+    	horz_zoom_fl = 6.0*((1.0*horz_sliderpos)-50.0)+100.0;
+    	horz_zoom_int = floor(horz_zoom_fl);
+  	}
+
+  	string horz_zoom_str = "x" + to_string(horz_zoom_int) + "%";
+  	wxString horz_zoom_wxstr(horz_zoom_str.c_str(), wxConvUTF8);
+
+  	horz_zoom_value->SetLabel(horz_zoom_wxstr);
+  	
+  	
+  	float vert_zoom_fl;
+  	int vert_zoom_int;
+
+  	if(vert_sliderpos <= 50) 
+  	{
+    	vert_zoom_fl = (1.5*vert_sliderpos)+25.0;
+    	vert_zoom_int = floor(vert_zoom_fl);
+  	}
+  	
+  	if(vert_sliderpos > 50) 
+  	{
+    	vert_zoom_fl = 6.0*((1.0*vert_sliderpos)-50.0)+100.0;
+    	vert_zoom_int = floor(vert_zoom_fl);
+  	}
+  	
+  	string vert_zoom_str = "x" + to_string(vert_zoom_int) + "%";
+  	wxString vert_zoom_wxstr(vert_zoom_str.c_str(), wxConvUTF8);
+
+  	vert_zoom_value->SetLabel(vert_zoom_wxstr);
+  
+  
+  	canvas->ZoomVert(vert_zoom_int);
+  	canvas->ZoomHor(horz_zoom_int);
+}
+
+void MyFrame::OnZoomOut(wxCommandEvent &event)
+{
+	int vert_sliderpos = vert_zoom_slider->GetValue();
+	int horz_sliderpos = horz_zoom_slider->GetValue();
+	vert_sliderpos -= 5;
+	horz_sliderpos -= 5;
+	if(vert_sliderpos < 0) vert_sliderpos = 0;
+	if(horz_sliderpos <0) horz_sliderpos=0;
+	
+	vert_zoom_slider->SetValue(vert_sliderpos);
+	horz_zoom_slider->SetValue(horz_sliderpos);
+		
+	float horz_zoom_fl;
+  	int horz_zoom_int;
+
+  	if(horz_sliderpos <= 50) 
+  	{
+    	horz_zoom_fl = (1.5*horz_sliderpos)+25.0;
+    	horz_zoom_int = floor(horz_zoom_fl);
+  	}
+
+  	if(horz_sliderpos > 50) 
+  	{
+    	horz_zoom_fl = 6.0*((1.0*horz_sliderpos)-50.0)+100.0;
+    	horz_zoom_int = floor(horz_zoom_fl);
+  	}
+
+  	string horz_zoom_str = "x" + to_string(horz_zoom_int) + "%";
+  	wxString horz_zoom_wxstr(horz_zoom_str.c_str(), wxConvUTF8);
+
+  	horz_zoom_value->SetLabel(horz_zoom_wxstr);
+  	
+  	
+  	float vert_zoom_fl;
+  	int vert_zoom_int;
+
+  	if(vert_sliderpos <= 50) 
+  	{
+    	vert_zoom_fl = (1.5*vert_sliderpos)+25.0;
+    	vert_zoom_int = floor(vert_zoom_fl);
+  	}
+  	
+  	if(vert_sliderpos > 50) 
+  	{
+    	vert_zoom_fl = 6.0*((1.0*vert_sliderpos)-50.0)+100.0;
+    	vert_zoom_int = floor(vert_zoom_fl);
+  	}
+  	
+  	string vert_zoom_str = "x" + to_string(vert_zoom_int) + "%";
+  	wxString vert_zoom_wxstr(vert_zoom_str.c_str(), wxConvUTF8);
+
+  	vert_zoom_value->SetLabel(vert_zoom_wxstr);
+  
+  
+  	canvas->ZoomVert(vert_zoom_int);
+  	canvas->ZoomHor(horz_zoom_int);
+  	
+}
+
+void MyFrame::OnMouse(wxMouseEvent &event)
+{
+	int num = 0;
+	
+	int r = event.GetWheelRotation();
+
+	if(r>0 &&  event.ControlDown() == false) 
+	{
+		num = 2;
+	}
+	else if(r < 0  &&  event.ControlDown() == false)
+	{
+		 num = -2;
+	}
+	else
+	{
+		return;
+	}
+	
+	int vert_sliderpos = vert_zoom_slider->GetValue();
+	int horz_sliderpos = horz_zoom_slider->GetValue();
+	vert_sliderpos += num;
+	horz_sliderpos += num;
+	if(vert_sliderpos < 0) vert_sliderpos = 0;
+	if(horz_sliderpos <0) horz_sliderpos=0;
+	if(vert_sliderpos > 100) vert_sliderpos = 100;
+	if(horz_sliderpos > 100) horz_sliderpos= 100;
+	
+	
+	vert_zoom_slider->SetValue(vert_sliderpos);
+	horz_zoom_slider->SetValue(horz_sliderpos);
+		
+	float horz_zoom_fl;
+  	int horz_zoom_int;
+
+  	if(horz_sliderpos <= 50) 
+  	{
+    	horz_zoom_fl = (1.5*horz_sliderpos)+25.0;
+    	horz_zoom_int = floor(horz_zoom_fl);
+  	}
+
+  	if(horz_sliderpos > 50) 
+  	{
+    	horz_zoom_fl = 6.0*((1.0*horz_sliderpos)-50.0)+100.0;
+    	horz_zoom_int = floor(horz_zoom_fl);
+  	}
+
+  	string horz_zoom_str = "x" + to_string(horz_zoom_int) + "%";
+  	wxString horz_zoom_wxstr(horz_zoom_str.c_str(), wxConvUTF8);
+
+  	horz_zoom_value->SetLabel(horz_zoom_wxstr);
+  	
+  	
+  	float vert_zoom_fl;
+  	int vert_zoom_int;
+
+  	if(vert_sliderpos <= 50) 
+  	{
+    	vert_zoom_fl = (1.5*vert_sliderpos)+25.0;
+    	vert_zoom_int = floor(vert_zoom_fl);
+  	}
+  	
+  	if(vert_sliderpos > 50) 
+  	{
+    	vert_zoom_fl = 6.0*((1.0*vert_sliderpos)-50.0)+100.0;
+    	vert_zoom_int = floor(vert_zoom_fl);
+  	}
+  	
+  	string vert_zoom_str = "x" + to_string(vert_zoom_int) + "%";
+  	wxString vert_zoom_wxstr(vert_zoom_str.c_str(), wxConvUTF8);
+
+  	vert_zoom_value->SetLabel(vert_zoom_wxstr);
+  
+  
+  	canvas->ZoomVert(vert_zoom_int);
+  	canvas->ZoomHor(horz_zoom_int);
+	
+}
+
 void MyFrame::runnetwork(int ncycles)
   	// Function to run the network, derived from corresponding function in userint.cc
 {
@@ -1500,3 +1790,78 @@ void MyFrame::print_action(string message)
 	
 	action_num = action_num+1;	
 }
+
+void MyFrame::zoom(int n)
+{
+	int num = n;
+	int vert_sliderpos = vert_zoom_slider->GetValue();
+	int horz_sliderpos = horz_zoom_slider->GetValue();
+	vert_sliderpos += num;
+	horz_sliderpos += num;
+	if(vert_sliderpos < 0) vert_sliderpos = 0;
+	if(horz_sliderpos <0) horz_sliderpos=0;
+	if(vert_sliderpos > 100) vert_sliderpos = 100;
+	if(horz_sliderpos > 100) horz_sliderpos= 100;
+	
+	
+	vert_zoom_slider->SetValue(vert_sliderpos);
+	horz_zoom_slider->SetValue(horz_sliderpos);
+		
+	float horz_zoom_fl;
+  	int horz_zoom_int;
+
+  	if(horz_sliderpos <= 50) 
+  	{
+    	horz_zoom_fl = (1.5*horz_sliderpos)+25.0;
+    	horz_zoom_int = floor(horz_zoom_fl);
+  	}
+
+  	if(horz_sliderpos > 50) 
+  	{
+    	horz_zoom_fl = 6.0*((1.0*horz_sliderpos)-50.0)+100.0;
+    	horz_zoom_int = floor(horz_zoom_fl);
+  	}
+
+  	string horz_zoom_str = "x" + to_string(horz_zoom_int) + "%";
+  	wxString horz_zoom_wxstr(horz_zoom_str.c_str(), wxConvUTF8);
+
+  	horz_zoom_value->SetLabel(horz_zoom_wxstr);
+  	
+  	
+  	float vert_zoom_fl;
+  	int vert_zoom_int;
+
+  	if(vert_sliderpos <= 50) 
+  	{
+    	vert_zoom_fl = (1.5*vert_sliderpos)+25.0;
+    	vert_zoom_int = floor(vert_zoom_fl);
+  	}
+  	
+  	if(vert_sliderpos > 50) 
+  	{
+    	vert_zoom_fl = 6.0*((1.0*vert_sliderpos)-50.0)+100.0;
+    	vert_zoom_int = floor(vert_zoom_fl);
+  	}
+  	
+  	string vert_zoom_str = "x" + to_string(vert_zoom_int) + "%";
+  	wxString vert_zoom_wxstr(vert_zoom_str.c_str(), wxConvUTF8);
+
+  	vert_zoom_value->SetLabel(vert_zoom_wxstr);
+  
+  
+  	canvas->ZoomVert(vert_zoom_int);
+  	canvas->ZoomHor(horz_zoom_int);
+}
+
+void MyFrame::ShowHelp(wxCommandEvent &event)
+{
+/*
+		helpD = new wxSimpleHelpProvider();
+		helpD-> AddHelp(this, "Set the number of clock cycles to run, the default is set to 10. Pressing continue will run the simulation for an additional number of cycles from where the initial run stopped. Pressing the run button again will start from time 0.\n\n The switch state is on when the switch is ticked and off otherwise. Monitoring points can be changed in a similar fashion.\n\n Vertical and horizontal zoom can be set independently from the sliders. Zooming can also be achieved using the mouse wheel.  By pressing control and using the mouse wheel the user can scroll through all the monitored devices. Zooming in while keeping the aspect ratio constant can also be achieved using Ctrl-Z while zooming out is possible using Ctrl-Shift-Z.\n\n The user can go to time zero or to the current time by using the toolbar buttons. \n\n The displayed signals can be saved to a PNG image using the save icon on the toolbar or using the shortcut.\n\n the grid can be toggled on or off. The settings and dialog window can also be toggled on or off to increase the signal viewing area");
+		helpD->ShowHelp(this);
+		*/
+		
+}
+
+
+

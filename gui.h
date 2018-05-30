@@ -5,6 +5,7 @@
 #include <wx/glcanvas.h>
 #include <wx/spinctrl.h>
 #include <wx/textctrl.h>
+#include <wx/cshelp.h>
 #include <string>
 #include <vector>
 
@@ -34,9 +35,12 @@ enum {
   	MY_RUN_BUTTON_ID,
   	MY_FILE_RUN_ID,
   	MY_FILE_CONTINUE_ID,
+  	MY_FILE_SAVE_ID,
   	TOOLBAR_ID,
   	RUN_TOOLBAR_ID,
   	CONTINUE_TOOLBAR_ID,
+  	START_TOOLBAR_ID,
+  	END_TOOLBAR_ID,
   	MY_CONTINUE_BUTTON_ID,
   	VERT_SLIDER_ID,
   	HORZ_SLIDER_ID,
@@ -48,6 +52,12 @@ enum {
   	SHOW_SETTINGS_ID,
   	SHOW_DIALOG_ID,
   	SAVE_TOOLBAR_ID,
+  	START_MENU_ID,
+  	END_MENU_ID,
+  	SAVE_MENU_ID,
+  	ZOOM_IN_MENU_ID,
+  	ZOOM_OUT_MENU_ID,
+  	HELP_MENU_ID,
 }; // widget identifiers
 
 class MyGLCanvas;
@@ -58,6 +68,8 @@ class MyFrame: public wxFrame
   	MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, const wxSize& size, names *names_mod = NULL, devices *devices_mod = NULL, monitor *monitor_mod = NULL, parser * parser_mod = NULL, long style = wxDEFAULT_FRAME_STYLE); // constructor
   	void print_action(string message);
   	//void mirror_char(unsigned char *pixels, int width, int height);
+  	void zoom(int n);
+  	
   	
  	private:
   	MyGLCanvas *canvas;                     // OpenGL drawing area widget to draw traces
@@ -71,7 +83,6 @@ class MyFrame: public wxFrame
 	wxWindow *right_button_window = new wxWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_SUNKEN, "Settings");
 		
 	wxMenu *fileMenu = new wxMenu;
-	wxMenu *editMenu = new wxMenu;
 	wxMenu *viewMenu = new wxMenu;
 	wxMenu *windowMenu = new wxMenu;	
 		
@@ -94,7 +105,9 @@ class MyFrame: public wxFrame
   	wxCheckListBox *monitor_list1;
   	wxString *action_list;
 	wxListBox *action_list1;
-  	  
+	
+  	wxKeyboardState *kState;  
+  	wxSimpleHelpProvider * helpD;
   	
   	bool show_grid = true;
   	bool show_settings = true;
@@ -116,6 +129,13 @@ class MyFrame: public wxFrame
   	void runnetwork(int ncycles);           // function to run the logic network
   	void OnContinueButton(wxCommandEvent &event);
   	void SaveCanvas(wxCommandEvent &event);
+  	void OnStart(wxCommandEvent &event);
+  	void OnEnd(wxCommandEvent &event);
+  	void OnZoomIn(wxCommandEvent &event);
+  	void OnZoomOut(wxCommandEvent &event);
+  	void OnMouse(wxMouseEvent &event);
+  	void ShowHelp(wxCommandEvent &event);
+  	void closedHelp(wxCloseEvent &event);
   	
   	vector<dev> devList;
   	vector<string> switchNames;
@@ -127,7 +147,7 @@ class MyFrame: public wxFrame
 class MyGLCanvas: public wxGLCanvas
 {
  public:
-  MyGLCanvas(wxWindow *parent, wxWindowID id = wxID_ANY, monitor* monitor_mod = NULL, names* names_mod = NULL,
+  MyGLCanvas(wxWindow *parent,MyFrame *f ,wxWindowID id = wxID_ANY, monitor* monitor_mod = NULL, names* names_mod = NULL,
 	     const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize, long style = 0,
 	     const wxString& name = "MyGLCanvas", const wxPalette &palette=wxNullPalette); // constructor
   void Render(); // function to draw canvas contents
@@ -140,9 +160,13 @@ class MyGLCanvas: public wxGLCanvas
   void run(int cycles);
   void cont(int cycles);
   void montr();
+  void goToStart();
+  void goToEnd();
   
   
  private:
+  MyFrame *frame;
+  
   wxGLContext *context;              // OpenGL rendering context
   bool init;                         // has the OpenGL context been initialised?
   int pan_x;                         // the current x pan
@@ -218,7 +242,7 @@ class MyGLCanvas: public wxGLCanvas
 	
 	void printRectangle();
 	
-	
+	wxKeyboardState *kState;  
 
 	
   DECLARE_EVENT_TABLE()
