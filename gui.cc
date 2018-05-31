@@ -555,7 +555,8 @@ void MyGLCanvas::printTime()
 	for(int i = startAt; i < floor(((float)width-NAME_SPACE)/signal_width)+1+startAt; i ++)
 	{
 		if(isSmall == true && (i%5) != 0) continue; //continue to next cycle if the size is small and i is not a multiple of 5
-		
+		if(i > 100  && (i%5) != 0 && signal_width/SIGNAL_WIDTH < 1.5) continue;
+		if(i>1000  && (i%5) != 0 ) continue;
 		if(isSmall) glRasterPos2f(NAME_SPACE + (i-startAt)*signal_width - 7.5, height - 10);
 		else glRasterPos2f(NAME_SPACE + (i-startAt)*signal_width - 7.5, height - 10);
 		
@@ -573,14 +574,14 @@ void MyGLCanvas::printGrid()
 	{
 		
     	glColor3f(0.90, 0.90, 0.90); //light gray color
-    	if( i%5 == 0 && isSmall == true) glColor3f(0.5, 0.5, 0.5);
+    	if( (i + startAt)%5 == 0 && isSmall == true) glColor3f(0.5, 0.5, 0.5);
 		//draw time ticks
 		glBegin(GL_LINE_STRIP);//draw line segments
 		glVertex2f(NAME_SPACE + i*signal_width,0);
 		glVertex2f(NAME_SPACE + i*signal_width,height);
 		glEnd();
 	}
-	
+	glColor3f(0.90, 0.90, 0.90); //light gray color
 	//glColor3f(0.70, 0.70, 0.70); //darker light gray color
 	for(int j = 0; j < max_number_to_print+1;    j++)
 	{
@@ -797,25 +798,25 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 	
 	
 	int r = event.GetWheelRotation();
-	if(r > 0 && event.AltDown() == true)
+	if(r > 0 && event.AltDown() == true  && event.ControlDown() == false)
 	{
 		startAt++;
 	}
-	else if(r < 0 && event.AltDown() == true)
+	else if(r < 0 && event.AltDown() == true  && event.ControlDown() == false)
 	{
 		startAt--;
 	}
-	else if(r>0 &&  event.ControlDown() == true) 
+	else if(r>0 &&  event.ControlDown() == true  && event.AltDown() == false) 
 	{
 		end_signal += 1;
 		start_signal += 1;
 	}
-	else if(r < 0  &&  event.ControlDown() == true)
+	else if(r < 0  &&  event.ControlDown() == true  && event.AltDown() == false)
 	{
 		 end_signal -=1;
 		 start_signal -=1;
 	}
-	else if(r > 0)
+	else if(r > 0 &&  event.ControlDown() == false  && event.AltDown() == false)
 	{
 		frame->zoom(2);
 		
@@ -823,7 +824,7 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 		startAt = endAt - floor((width-NAME_SPACE)/signal_width);
 		if(startAt < 0) startAt = 0;
 	}
-	else if(r < 0)
+	else if(r < 0 &&  event.ControlDown() == false  && event.AltDown() == false)
 	{
 		frame->zoom(-2);
 		
@@ -844,6 +845,7 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 		start_signal = 0;
 		end_signal = start_signal+max_number_to_print;
 	}
+	
 	bool mv = event.Moving();
 	 
 	if(mv)
@@ -875,7 +877,19 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 	 	mouse_left = false;
 		mouse_right = false;
 	 }
-	
+	 
+	 if(startAt < 0) startAt = 0;
+	 if(startAt>=currentTime) 
+	 {
+	 	startAt = currentTime - 1;
+	 	endAt =currentTime;
+ 	}
+	 if(endAt > currentTime)
+	 {	
+	 	 endAt = currentTime;
+	 	 startAt =  currentTime - floor((width-NAME_SPACE)/signal_width);
+	 }
+	 
 	 Render();
 /*
   GetClientSize(&w, &h);
@@ -1022,7 +1036,6 @@ void MyGLCanvas::keyReleased(wxKeyEvent& event) {}
 
 BEGIN_EVENT_TABLE(MyFrame, wxFrame)
 	EVT_MENU(wxID_EXIT, MyFrame::OnExit)
-	EVT_MENU(wxID_ABOUT, MyFrame::OnAbout)
 	EVT_MENU(SHOW_GRID_ID, MyFrame::ShowGrid)
 	EVT_MENU(SHOW_SETTINGS_ID, MyFrame::ShowSettings)
 	EVT_MENU(SHOW_DIALOG_ID, MyFrame::ShowDialog)
@@ -1201,7 +1214,6 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
 	fileMenu->Append(MY_FILE_SAVE_ID,"&Save As...\tCtrl-S");
 	fileMenu->AppendSeparator();
 	fileMenu->Append(HELP_MENU_ID, "&Help\tCtrl-H");
-	fileMenu->Append(wxID_ABOUT, "&About");
 	fileMenu->Append(wxID_EXIT, "&Quit\tCtrl-Q");
 	
 	viewMenu->Append(START_MENU_ID,"Go To &Start\tShift-Ctrl-S");
@@ -1326,13 +1338,7 @@ void MyFrame::OnExit(wxCommandEvent &event)
   	Close(true);
 }
 
-void MyFrame::OnAbout(wxCommandEvent &event)
-  	// Event handler for the about menu item
-{
-  	//wxMessageDialog about(this, "Example wxWidgets GUI\nAndrew Gee\nJune 2014", "About Logsim", wxICON_INFORMATION | wxOK);
-  	//about.ShowModal();
-  	
-}
+
 
 // Show/Hide the guidance grid in the canvas
 

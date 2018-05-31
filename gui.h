@@ -118,7 +118,6 @@ class MyFrame: public wxFrame
   	int cyclescompleted;                    // how many simulation cycles have been completed
   	
   	void OnExit(wxCommandEvent& event);     // event handler for exit menu item
-  	void OnAbout(wxCommandEvent& event);    // event handler for about menu item
   	void ShowGrid(wxCommandEvent &event);
   	void ShowSettings(wxCommandEvent &event);
   	void ShowDialog(wxCommandEvent &event);
