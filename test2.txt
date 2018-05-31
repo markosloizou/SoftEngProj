@@ -9,11 +9,13 @@ SWITCH SOFF = 0;
   to the set and reset pins of the 
   Dtype latch */  
 DTYPE D;	//Define logic devices
+XOR X12345678910111213;
 AND A[3];
+DTYPE D2;
 NAND Na[2];
 OR O[2];
 NOR N[2];
-XOR X12345678910111213;
+
 
 CONNECTIONS
 S1 TO A.I1;	//Connections to AND
@@ -21,6 +23,12 @@ CL2 TO A.I2;
 CL3 TO A.I3;
 S2 TO Na.I1;	//Connections to NAND
 CL5 TO Na.I2; 
+
+CL1 TO D2.CLK;
+CL1 TO D2.SET;
+CL1 TO D2.DATA;
+CL1 TO D2.CLEAR;
+
 
 CL1 TO D.CLK;	//Connections to Dtype
 A TO D.DATA;
@@ -39,5 +47,5 @@ O TO X12345678910111213.I2;
 MONITOR
 
 X12345678910111213, CL1, D.Q;
-
+A;
 END

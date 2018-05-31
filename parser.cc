@@ -369,8 +369,11 @@ bool parser::readSwitch(char &ch)			//Function that defines Switches
 	{
 		eof = smz->GetNextString(str, ch);
 		
-		if(str.length() > 8) error_report(Long_identifier, smz->GetCurrentLineNumber()-1, smz->GetCurrentLine(), str); //Issue warning if device name is too long
-		
+		if(str.length() > 8) 
+		{
+			error_report(Long_identifier, smz->GetCurrentLineNumber()-1, smz->GetCurrentLine(), str); //Issue warning if device name is too long
+			//str = str.substr(0,8);
+		}
 		if(ch == '=')
 		{
 			eof = smz -> GetNextChar(ch);
@@ -470,10 +473,14 @@ bool parser::readFixedDevice(char &ch, devicekind kind)			//Function that define
 	{
 		eof = smz -> GetNextString(str,ch);
 		
-		if(str.length() > 8) error_report(Long_identifier, smz->GetCurrentLineNumber()-1, smz->GetCurrentLine(), str); /*Issue warning if device name is too long
+		if(str.length() > 8)
+		{
+			 error_report(Long_identifier, smz->GetCurrentLineNumber()-1, smz->GetCurrentLine(), str); /*Issue warning if device name is too long	 
 																 Problem only in that it can cause the 	
 																 device name to leak outside the designated	
 																 area in the GUI, so don't issue an error */
+			 //str = str.substr(0,8);
+		 }
 		
 		name id;
 		
@@ -584,7 +591,11 @@ bool parser::readVariableDevice(char& ch, devicekind kind)			//Function that def
 
 		eof = smz -> GetNextString(str,ch);
 		
-		if(str.length() > 8) error_report(Long_identifier, smz->GetCurrentLineNumber()-1, smz->GetCurrentLine(), str); //Issue warning if device name is too long
+		if(str.length() > 8)
+		{
+			 error_report(Long_identifier, smz->GetCurrentLineNumber()-1, smz->GetCurrentLine(), str); //Issue warning if device name is too long
+			 //str = str.substr(0,8);
+		 }
 		
 		if(ch != '[') 							//Number of inputs must be within brackets
 		{
@@ -1638,6 +1649,7 @@ void parser::error_report(er error_type, int error_line, string current_line, st
 		//Warnings	
 		case Long_identifier :
 			cout << cyan << bbr << "Warning:" << bbr_off << def << " Device name \"" << error_string << "\" is more than 8 characters long" << endl 
+			<< "It will be displayed as: \"" << error_string.substr(0,8)  << "\" on the GUI" << endl
 			<< "Line " << error_line << ": " << current_line << endl;
 			break;
 			

@@ -144,14 +144,15 @@ void MyGLCanvas::Render()
 			nam.Printf("%s",monitoring[i].nme);
 		}
 		
-		
+		int max_len = 8;
+		if(nam.Len() < 8) max_len = nam.Len();
 		if(signal_height/SIGNAL_HEIGHT < 0.65)
 		{
-    		for (int k = 0; k < nam.Len(); k++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, nam[k]);
+    		for (int k = 0; k < max_len; k++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, nam[k]);
     	}
     	else
     	{
-    		for (int k = 0; k < nam.Len(); k++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, nam[k]);
+    		for (int k = 0; k < max_len; k++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, nam[k]);
     	}
     	glColor3f(0.25, 0.25, 1.0);
     
@@ -871,7 +872,7 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 		mouse_right = false;
 	 }
 	 
-	 if(startAt < 0) startAt = 0;
+	 
 	 if(startAt>=currentTime) 
 	 {
 	 	startAt = currentTime - 1;
@@ -882,7 +883,7 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 	 	 endAt = currentTime;
 	 	 startAt =  currentTime - floor((width-NAME_SPACE)/signal_width);
 	 }
-	 
+	 if(startAt < 0) startAt = 0;
 	 Render();
 }
 
@@ -890,85 +891,6 @@ void MyGLCanvas::keyPressed(wxKeyEvent& event) {}
 void MyGLCanvas::keyReleased(wxKeyEvent& event) {}
 // MyFrame ///////////////////////////////////////////////////////////////////////////////////////
 
-/*
-
-// some useful events to use
-void MyGLCanvas::mouseMoved(wxMouseEvent& event) 
-{
-	wxString str;
-	str.Printf("");	
-	
-	GetClientSize(&width, &height);
-	
-	static int last_x, last_y;
-	 
-	last_x = event.m_x;
-    last_y = event.m_y;
-    
-    if(last_x < width * 0.15) 
-    {
-    	mouse_left = true;
-    	mouse_right = false;
-    	Render(str,-1);
-	}
-    else if(last_x > width*0.85) 
-    {
-    	mouse_left = false;
-    	mouse_right = true;
-    	Render(str, -1);
-	}
-    else
-    {
-    	mouse_left = false;
-    	mouse_right = false;
-    	Render(str,-1);
-    }
-}
-void MyGLCanvas::mouseDown(wxMouseEvent& event) 
-{
-
-}
-
-
-
-void MyGLCanvas::mouseWheelMoved(wxMouseEvent& event) 
-{
-	int r = event.GetWheelRotation();
-	if(r>0) 
-	{
-		end_signal += 1;
-		start_signal += 1;
-	}
-	else if(r > 0)
-	{
-		 end_signal -=1;
-		 start_signal -=1;
-	 }
-	
-	
-	if(start_signal < 0) 
-	{
-		start_signal = 0;
-		end_signal = start_signal+max_number_to_print;
-	}
-	if(end_signal > 100)
-	{
-		end_signal = 100;
-		start_signal = end_signal-max_number_to_print;
-	}
-	
-	
-	
-	Render("Mouse Wheel Event", 20);
-}
-
-void MyGLCanvas::mouseReleased(wxMouseEvent& event) {
-	wxString str;
-	str.Printf("");	
-	bool dc = event.LeftDClick();
-	if(dc)
-	{
-		if(mouse_right)
 BEGIN_EVENT_TABLE(MyFrame, wxFrame)
 	EVT_MENU(wxID_EXIT, MyFrame::OnExit)
 	EVT_MENU(SHOW_GRID_ID, MyFrame::ShowGrid)
@@ -1058,22 +980,23 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
   	
   	//create device list for monitoring
   	c = 0;
-  	for(int i= 0; i<devList.size(); i++)
+  	for(int i= 0; i < devList.size(); i++)
   	{
   		c++;
   		if(devList[i].kind == dtype) c++;
   	}
   	
   	monitor_list = new wxString[c];
+
   	
-  	
-  	
+  	int dtypes_added = 0;
   	for(int i = 0; i < devList.size();i++)
   	{
   		monDev m;
+
   		if(devList[i].kind != dtype)
-  		{
-  			monitor_list[i] = wxString(devList[i].Name);
+  		{	
+  			monitor_list[i + dtypes_added] = wxString(devList[i].Name);
   			m.devId = nmz->cvtname(devList[i].Name);
   			m.pinId = -1;
   			MList.push_back(m);
@@ -1086,23 +1009,22 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
 			s = devList[i].Name;
 			sbar = s + ".QBAR";
 			s = s + ".Q";
-			monitor_list[i] = wxString(s);
-			monitor_list[i+1] = wxString(sbar);
+			monitor_list[i+ dtypes_added] = wxString(s);
+			monitor_list[i+1+ dtypes_added] = wxString(sbar);
 			m.devId = nmz->cvtname(devList[i].Name);
 			m.pinId = nmz->cvtname("Q");
 			MList.push_back(m);
 			
 			m.pinId = nmz->cvtname("QBAR");
 			MList.push_back(m);
-			i++;
+			dtypes_added ++;
 		}
-		
   	}
   	
+
+  	monitor_list1 = new wxCheckListBox(right_button_window, MONITOR_LISTBOX_ID, wxDefaultPosition, wxSize(125, 95), c, monitor_list);
   	
-  	monitor_list1 = new wxCheckListBox(right_button_window, MONITOR_LISTBOX_ID, wxDefaultPosition, wxSize(125, 95), devList.size(), monitor_list);
-  	
-  	
+  	dtypes_added = 0;
   	//check monitored devices
   	for(int i =0; i< devList.size();i++)
   	{
@@ -1110,19 +1032,19 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
   		{
   			if(devList[i].kind != dtype)
   			{
-  				monitor_list1 ->Check(i,true);
+  				monitor_list1 ->Check(i+dtypes_added,true);
 			}
 			else
 			{
 				if( devList[i].bar == false)
 				{
-					monitor_list1 ->Check(i,true);
+					monitor_list1 ->Check(i+dtypes_added,true);
 				}
 				if(devList[i].bar == true)
 				{
-					monitor_list1 ->Check(i+1,true);
+					monitor_list1 ->Check(i+1+dtypes_added,true);
 				}
-				i++;
+				dtypes_added++;
 			}
   		}
   		else if(devList[i].kind == dtype)
@@ -1130,6 +1052,7 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
   			i++;
   		}
   	}
+
   	
   	action_list = new wxString[1]{wxT("1: Initialised program")};
   	action_list1 = new wxListBox(dialog_window, wxID_ANY, wxDefaultPosition, wxSize(-1, 72), 1, action_list);
@@ -1484,27 +1407,38 @@ void MyFrame::OnRunButton(wxCommandEvent &event)
   	// Event handler for the push button
 {
   	int n, ncycles;
-	run_flag = true;
-  	cyclescompleted = 0;
-  	dmz->initdevices ();
-  	mmz->resetmonitor ();
-  	runnetwork(spin->GetValue());
-  	
-  	string run_str = "Simulation started for " + to_string(spin->GetValue()) + " cycles";
-  	print_action(run_str);
-  	
-  	canvas->run(spin->GetValue());
+	
+  	ncycles = spin->GetValue();
+  	if(ncycles > 0)
+  	{
+  		cyclescompleted = 0;
+	  	dmz->initdevices ();
+	  	mmz->resetmonitor ();
+	  	
+	  	
+	  	string run_str = "Simulation started for " + to_string(spin->GetValue()) + " cycles";
+	  	print_action(run_str);
+	  	
+	  	
+  		run_flag = true;
+  		runnetwork(ncycles);
+  		canvas->run(ncycles);
+	}
 }
 
 void MyFrame::OnContinueButton(wxCommandEvent &event)
 {
 	if(run_flag == true)
 	{
-		runnetwork(spin->GetValue());
-		string continue_str = "Simulation continued for an additional " + to_string(spin->GetValue()) + " cycles";
-		print_action(continue_str);
+		int ncycles = spin->GetValue();
+		if(ncycles > 0)
+		{
+			runnetwork(spin->GetValue());
+			string continue_str = "Simulation continued for an additional " + to_string(spin->GetValue()) + " cycles";
+			print_action(continue_str);
 		
-		canvas->cont(spin->GetValue());
+			canvas->cont(spin->GetValue());
+		}
 	}
 	else
 	{
