@@ -52,11 +52,10 @@ enum er {
 		Undefined_device, Duplicate_device, Muptiple_connections,
 		Unused_input, dot_missing, Invalid_D_Input, Invalid_D_Output,
 		Connection_overwrite, Invalid_device_input, Nonexistent_pin,
-		Monitor_input,
+		Monitor_input, Too_many_devices, Too_few_devices,
 		
 		//Warnings
-		Unused_device = 201, Long_identifier, No_connections, 
-		No_monitor_points, Reused_connection,
+		Long_identifier = 201, No_connections, No_monitor_points,
 		
 		//Internal Error
 		Internal_error = 301		//We should never get this error in theory
@@ -103,7 +102,7 @@ class parser {
 		
 		bool createMonitor(char &ch);				//Master function for Phase III
 		
-		bool end_of_file(int nerrors);				//Final error report before entering Phase IV
+		bool end_of_file(int &nerrors);				//Final error report before entering Phase IV
 
 		void error_report(er error_type, int error_line, string current_line, string error_string); 	//Reports error on command prompt
 		void proceed(char& cur_char, bool& eof); 							//Move to next semicolumn

@@ -85,32 +85,58 @@ bool parser::readin (void)	//Master function that reads in circuit definition fi
   	switch(current_phase)
   	{
   		case devi:						//Phase I
+  		
   			defineDevice(cur_char);				//Master function for Phase I
+  			
   			if(cur_char == ';')				
   			{
   				eof = smz -> GetNextChar(cur_char);	//Move to next device definition
+  				
+  				if(eof == true)				//Check if file ends prematurely
+  				{
+  					error_report(Abrupt_end, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str);
+					current_phase = finito;
+					nerrors++;
+  				}
   			} 
   			break;
   			
   		case conn:						//Phase II
-  			defineConnections(cur_char);				//Master function for Phase II
+  		
+  			defineConnections(cur_char);			//Master function for Phase II
+  			
   			if(cur_char == ';')				
   			{
   				eof = smz -> GetNextChar(cur_char);	//Move to next connection definition
+  				
+  				if(eof == true)
+  				{
+  					error_report(Abrupt_end, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str);
+					current_phase = finito;
+					nerrors++;
+  				}
   			} 
   			break;
   			
 		case mon:						//Phase III
+		
 			createMonitor(cur_char);			//Master function for Phase III
+			
 			if(cur_char == ';')				
   			{
   				eof = smz -> GetNextChar(cur_char);	//Move to next monitor definition
+  				
+  				if(eof == true)				//Check if file ends prematurely
+  				{
+  					error_report(Abrupt_end, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str);
+					current_phase = finito;
+					nerrors++;
+  				}
   			} 
 			break;
 			
 		case finito:
-			eof = true;					//Ignore anything written after END has been declared
-			end_of_file(nerrors);				//Phase IV prelude		
+			eof = true;					//Ignore anything written after END has been declared		
 			break;
 		
 		default:
@@ -120,16 +146,11 @@ bool parser::readin (void)	//Master function that reads in circuit definition fi
 			break;
 	}
   }
-  if(eof == true)
-  {
-  	if(current_phase != finito)
-  	{
-  		end_of_file(nerrors);					//Phase IV prelude in case of abrupt file end
-  		nerrors++;
-  		return false;
-  	}
-  }
+  			
+  end_of_file(nerrors);							//Phase IV prelude
+
   if(nerrors > 0) return false;						//There are still some errors in the definition file that must be fixed
+  
   else return true;							//Move to Phase IV (over to GUI)
 }
 
@@ -156,7 +177,7 @@ bool parser::defineDevice(char &ch)					//Function to read in device refinitions
 			{
 				if(ConnectionsRequired() != 0)
 				{
-					error_report(CONNECTIONS_not_present, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); //Need CONNECTIONS before MONITOR points defined
+					error_report(CONNECTIONS_not_present, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), ""); //Need CONNECTIONS before MONITOR points defined
 					nerrors++;
 				}
 				current_phase = mon;
@@ -165,7 +186,7 @@ bool parser::defineDevice(char &ch)					//Function to read in device refinitions
 			
 			else if(str == "DEVICES")
 			{
-				error_report(Nonexistent_device_type, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str);		//We don't need this twice
+				error_report(Nonexistent_device_type, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), "");		//We don't need this twice
 				nerrors++;
 				break;
 			}
@@ -203,6 +224,7 @@ bool parser::defineDevice(char &ch)					//Function to read in device refinitions
 	if(eof == true)
 	{
 		error_report(Abrupt_end, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str);
+		nerrors++;
 		current_phase = finito;
 		return false;
 	}
@@ -334,6 +356,7 @@ bool parser::readDevice(char& ch,devicekind kind)		//Function to sort devices ac
 	{
 		current_phase = finito;
 		error_report(Abrupt_end, smz->GetCurrentLineNumber()-1, smz->GetCurrentLine(), string(1, ch)); //End of file reached unexpectedly
+		nerrors++;
 		return false;
 	}
 }
@@ -734,6 +757,7 @@ bool parser::defineConnections(char & ch)		//Function to define connections
 	{
 		error_report(Abrupt_end, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
 		current_phase = finito;
+		nerrors++;
 		return false;
 	}
 	
@@ -1222,6 +1246,15 @@ bool parser::createMonitor(char &ch)			//Function to set up monitor points on an
 			break;
 		}
 	}
+	
+	
+	if(eof == true)
+	{
+		current_phase = finito;
+		error_report(Abrupt_end, smz->GetCurrentLineNumber(), smz->GetCurrentLine()," ");
+		proceed(ch,eof); 								 	
+		nerrors++;
+	}
 }
 
 
@@ -1240,7 +1273,7 @@ devicekind parser::getKind(string identifier)		//Function to retrive internal re
 	return baddevice;
 }
 
-bool parser::end_of_file(int nerrors)			//Summarises any errors made in the definition file
+bool parser::end_of_file(int &nerrors)			//Summarises any errors made in the definition file
 {
 	Color::Modifier red(Color::FG_RED);				//For Emphasis
 	Color::Modifier bbr(Color::BOLD_AND_BRIGHT);
@@ -1251,17 +1284,19 @@ bool parser::end_of_file(int nerrors)			//Summarises any errors made in the defi
 	
 	if(n != nconnections)
 	{
-  		if(n < nconnections)
+  		if(n > nconnections)
   		{
-  			error_report(Unused_device, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), ""); 		//Issues a warning about unused devices being present
-  			if(debugging) cout << "Devices declared require " <<  ConnectionsRequired() << " connections, but only " << nconnections << " were found" << endl; 
-  			cout << endl;
+  			error_report(Too_many_devices, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), "");
   		}
   		else
   		{
-  			error_report(Reused_connection, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), ""); 	//Issues a warning about extra connections being present
-  			if(debugging) cout << "Devices declared require " <<  ConnectionsRequired() << " connections, but " << nconnections << " were found" << endl; 
+  			error_report(Too_few_devices, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), "");
+
   		}
+  		
+  		if(debugging) cout << "Devices declared require " <<  ConnectionsRequired() << " connections, but  " << nconnections << " were found" << endl; 
+  		
+  		nerrors++;
 	}
 	
   	if(debugging) cout << endl << "End of Device Definition File" << endl << endl;
@@ -1270,16 +1305,16 @@ bool parser::end_of_file(int nerrors)			//Summarises any errors made in the defi
   	{
   	  	if(nerrors == 1)
   	  	{
-  	  		cout << "Please" << red << bbr << " review 1 error " << bbr_off << def <<  "in the Device Definition File and Reload it!" << endl << endl;
+  	  		cout << endl << "Please" << red << bbr << " review 1 error " << bbr_off << def <<  "in the Device Definition File and Reload it!" << endl << endl;
   	  	}
   	  	else
   	  	{
-  	  		cout << "Please" << red << bbr << " review " << nerrors << " errors " << bbr_off << def << "in the Device Definition File and Reload it!" << endl << endl;
+  	  		cout << endl << "Please" << red << bbr << " review " << nerrors << " errors " << bbr_off << def << "in the Device Definition File and Reload it!" << endl << endl;
   	  	}
   	}
 	else if(nerrors == 0)
 	{
-		cout << "No errors found in Device Definition File!" << endl << endl << "Launching Graphical User Interface..." << endl << endl;
+		cout << endl << "No errors found in Device Definition File!" << endl << endl << "Launching Graphical User Interface..." << endl << endl;
 	}
 	else
 	{
@@ -1463,7 +1498,8 @@ void parser::error_report(er error_type, int error_line, string current_line, st
 			
 			
 		case Abrupt_end :
-			cout << red << bbr << "Syntax Error 21:" << bbr_off << def << " Definition File is incomplete! (There are missing sections)" << endl; 
+			cout << red << bbr << "Syntax Error 21:" << bbr_off << def << " Definition File is incomplete!" << endl
+			<< "(Sections DEVICES, CONNECTIONS, MONITOR and END are needed)" << endl; 
 			break;
 			
 		case Empty_file :
@@ -1574,7 +1610,7 @@ void parser::error_report(er error_type, int error_line, string current_line, st
 			break;
 			
 		case Invalid_device_input :
-			cout << red << bbr << "Semantic Error 20:" << bbr_off << def << " Device inputs must be strictly positive" << endl 
+			cout << red << bbr << "Semantic Error 20:" << bbr_off << def << " Device inputs must be positive integers" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			break;
@@ -1591,30 +1627,26 @@ void parser::error_report(er error_type, int error_line, string current_line, st
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			break;
 			
-			
-		//Warnings	
-		case Unused_device :
-			cout << cyan << bbr << "Warning:" << bbr_off << def << " Unused device " << endl;
+		case Too_many_devices :
+			cout << red << bbr << "Semantic Error 23:" << bbr_off << def << " Not all device inputs are used in the specified circuit" << endl;
 			break;
 			
+		case Too_few_devices :
+			cout << red << bbr << "Semantic Error 24:" << bbr_off << def << " A device input is used more than once in the specified circuit" << endl;
+			break;
+			
+		//Warnings	
 		case Long_identifier :
-			cout << cyan << bbr << "Warning:" << bbr_off << def << " Device name " << error_string << "\" is more than 8 characters long" << endl 
+			cout << cyan << bbr << "Warning:" << bbr_off << def << " Device name \"" << error_string << "\" is more than 8 characters long" << endl 
 			<< "Line " << error_line << ": " << current_line << endl;
 			break;
 			
 		case No_connections :
-			cout << cyan << bbr << "Warning:" << bbr_off << def << " No connections specified in definition file" << endl
-			<< "Line " << error_line << ": " << current_line << endl
-			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
+			cout << cyan << bbr << "Warning:" << bbr_off << def << " No connections specified in definition file" << endl;
 			break;
 			
 		case No_monitor_points :
-			cout << cyan << bbr << "Warning:" << bbr_off << def << " No monitor points specified" << endl 
-			<< "Line " << error_line << ": " << current_line << endl;
-			break;
-			
-		case Reused_connection :
-			cout << cyan << bbr << "Warning:" << bbr_off << def << " There are too many connections specified for the devices specified. A connection was ignored" << endl;
+			cout << cyan << bbr << "Warning:" << bbr_off << def << " No monitor points specified" << endl;
 			break;
 			
 			
