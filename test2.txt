@@ -7,8 +7,7 @@ SWITCH S1 = 1, S2 = 1;
 SWITCH SOFF = 0;	
 /*This switch will be connected
   to the set and reset pins of the 
-  Dtype latch */
-  
+  Dtype latch */  
 DTYPE D;	//Define logic devices
 AND A[3];
 NAND Na[2];
@@ -17,11 +16,9 @@ NOR N[2];
 XOR X12345678910111213;
 
 CONNECTIONS
-
 S1 TO A.I1;	//Connections to AND
 CL2 TO A.I2;
 CL3 TO A.I3;
-
 S2 TO Na.I1;	//Connections to NAND
 CL5 TO Na.I2; 
 
