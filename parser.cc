@@ -44,7 +44,7 @@ namespace Color { 				//Colour namespace for error printing
     };
 }
 
-bool parser::readin (void)
+bool parser::readin (void)	//Master function that reads in circuit definition file. Returns True if the file is valid according to EBNF definition
 {
   bool eof = false; 	//End Of File - Becomes true when end of file is reached
   char cur_char;	//Stores current character
@@ -184,14 +184,7 @@ bool parser::defineDevice(char &ch)					//Function to read in device refinitions
 			}
 			else
 			{
-				if(smz->GetCharPosition() == 0)
-				{
-					error_report(Nonexistent_device_type, smz->GetCurrentLineNumber(), smz->GetPreviousLine(), str); //Device type is illegal	
-				}
-				else
-				{
-					error_report(Nonexistent_device_type, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str);
-				}
+				error_report(Nonexistent_device_type, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str);		//Device type is illegal
 				proceed(ch,eof); 								 		
 				nerrors++; 												
 			}
@@ -201,7 +194,7 @@ bool parser::defineDevice(char &ch)					//Function to read in device refinitions
 		else if(ch == ',') continue;
 		else
 		{
-			error_report(Nonexistent_device_type, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 	//All devices start with a letter	
+			error_report(Nonexistent_device_type, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 		//All devices start with a letter	
 			proceed(ch,eof);
 			nerrors++;
 		}
@@ -352,6 +345,7 @@ bool parser::readSwitch(char &ch)			//Function that defines Switches
 	if(isalpha(ch))
 	{
 		eof = smz->GetNextString(str, ch);
+		
 		if(str.length() > 8) error_report(Long_identifier, smz->GetCurrentLineNumber()-1, smz->GetCurrentLine(), str); //Issue warning if device name is too long
 		
 		if(ch == '=')
@@ -452,7 +446,11 @@ bool parser::readFixedDevice(char &ch, devicekind kind)			//Function that define
 	if(isalpha(ch))
 	{
 		eof = smz -> GetNextString(str,ch);
-		if(str.length() > 8) error_report(Long_identifier, smz->GetCurrentLineNumber()-1, smz->GetCurrentLine(), str); //Issue warning if device name is too long
+		
+		if(str.length() > 8) error_report(Long_identifier, smz->GetCurrentLineNumber()-1, smz->GetCurrentLine(), str); /*Issue warning if device name is too long
+																 Problem only in that it can cause the 	
+																 device name to leak outside the designated	
+																 area in the GUI, so don't issue an error */
 		
 		name id;
 		
@@ -562,6 +560,7 @@ bool parser::readVariableDevice(char& ch, devicekind kind)			//Function that def
 	{
 
 		eof = smz -> GetNextString(str,ch);
+		
 		if(str.length() > 8) error_report(Long_identifier, smz->GetCurrentLineNumber()-1, smz->GetCurrentLine(), str); //Issue warning if device name is too long
 		
 		if(ch != '[') 							//Number of inputs must be within brackets
@@ -626,9 +625,9 @@ bool parser::readVariableDevice(char& ch, devicekind kind)			//Function that def
 			}
 		}
 		
-		if(number == 0)							//Can't have any device with zero inputs
+		if(number == 0 || number < 0)					//Can't have any device with zero inputs
 		{
-				error_report(Invalid_clock_input, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), to_string(number)); 
+				error_report(Invalid_device_input, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), to_string(number)); 
 				proceed(ch,eof);
 				nerrors++;
 				return false;	
@@ -672,7 +671,7 @@ bool parser::readVariableDevice(char& ch, devicekind kind)			//Function that def
 		
 		if(!ok)
 		{
-			error_report(Internal_error, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+			error_report(Internal_error, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), " "); 
 			proceed(ch,eof);
 			nerrors++;
 			return false;
@@ -753,13 +752,13 @@ bool parser::defineConnections(char & ch)		//Function to define connections
 		{	
 			if(nconnections == 0 && ConnectionsRequired() != 0) 						//Declared end before all necessary connections have been established												
 			{
-				error_report(No_connections, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch));
+				error_report(No_connections, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str);
 				current_phase = finito;									//Move to Phase IV
 				return false;								
 			}
 			else
 			{
-				error_report(No_monitor_points, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch));
+				error_report(No_monitor_points, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str);
 				current_phase = finito;									//Move to Phase IV
 				return true;	//Monitor points can be defined in GUI so no need for these here
 			}
@@ -767,14 +766,14 @@ bool parser::defineConnections(char & ch)		//Function to define connections
 		
 		if(str == "CONNECTIONS")
 		{
-			error_report(Illegal_identifier, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+			error_report(Illegal_identifier, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 
 			proceed(ch,eof);
 			nerrors++;
 			return false;
 		}
 		if(str == "DEVICES")
 		{
-			error_report(Illegal_identifier, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
+			error_report(Illegal_identifier, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 
 			proceed(ch,eof);
 			nerrors++;
 			return false;
@@ -804,6 +803,7 @@ bool parser::defineConnections(char & ch)		//Function to define connections
 				nerrors++;
 				return false;
 			}
+			
 			eof = smz -> GetNextChar(ch);
 			
 			if(ch!='Q')																
@@ -947,7 +947,7 @@ bool parser::defineConnections(char & ch)		//Function to define connections
 		
 		else
 		{
-			eof = smz->GetNextChar(ch);															//TODO another error??
+			eof = smz->GetNextChar(ch);
 			
 			if(ch!='I')
 			{
@@ -959,6 +959,7 @@ bool parser::defineConnections(char & ch)		//Function to define connections
 			else
 			{
 				eof = smz->GetNextChar(ch);
+				
 				if(!isdigit(ch))
 				{
 					error_report(no_number_after_I, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
@@ -969,6 +970,7 @@ bool parser::defineConnections(char & ch)		//Function to define connections
 				else
 				{
 					eof = smz->GetNextNumber(number,ch);
+					
 					inDevName += ".I" + to_string(number);
 					string s = "I" + to_string(number);
 					inDevPinID = nmz->cvtname(s);
@@ -1025,7 +1027,7 @@ bool parser::defineConnections(char & ch)		//Function to define connections
 	{
 		if(!inputInUse(inDevID,inDevPinID))
 		{
-			cons Con;
+			cons Con;			//Store connection in internal data structure
 			Con.inDevice = inDevID;
 			Con.inDevicePin = inDevPinID;
 			conList.push_back(Con); 
@@ -1106,12 +1108,12 @@ bool parser::createMonitor(char &ch)			//Function to set up monitor points on an
 			}
 			
 			deviceName = str;
-			eof = smz->GetNextString(str,ch);
 			
+			eof = smz->GetNextString(str,ch);
 
 			if(str == "DATA" || str == "CLK" || str == "SET" || str == "CLEAR")
 			{
-				error_report(Monitor_input, smz->GetCurrentLineNumber(), smz->GetCurrentLine(),string{ch});
+				error_report(Monitor_input, smz->GetCurrentLineNumber(), smz->GetCurrentLine(),string{ch});	//Only device outputs can be monitored
 				proceed(ch,eof); 								 	
 				nerrors++;
 				return false;	
@@ -1141,11 +1143,12 @@ bool parser::createMonitor(char &ch)			//Function to set up monitor points on an
 			{	
 				if (debugging) cout << "Monitoring " << deviceName << "." << str << endl;
 				
-				for(int i = 0; i < devList.size();i++)
+				for(int i = 0; i < devList.size();i++)								//Store monitor point internally for use in GUI
 				{
 					if(devList[i].Name == deviceName)
 					{
 						devList[i].isMonitored = true;
+						
 						if(devList[i].kind == dtype && deviceOut == nmz->cvtname("QBAR"))
 						{
 							devList[i].bar = true;
@@ -1167,8 +1170,8 @@ bool parser::createMonitor(char &ch)			//Function to set up monitor points on an
 			
 			device = nmz->cvtname(str);
 			deviceOut = -1; //Again, not very obvious...
-			mmz->makemonitor(device,deviceOut,ok);
 			
+			mmz->makemonitor(device,deviceOut,ok);
 			
 			if(!ok)
 			{
@@ -1181,11 +1184,12 @@ bool parser::createMonitor(char &ch)			//Function to set up monitor points on an
 			{
 				if (debugging) cout << "Monitoring " << str << endl;
 				
-				for(int i = 0; i < devList.size();i++)
+				for(int i = 0; i < devList.size();i++)								//Store monitor point internally for use in GUI
 				{
 					if(devList[i].Name == str)
 					{
 						devList[i].isMonitored = true;
+						
 						if(devList[i].kind == dtype && deviceOut == nmz->cvtname("QBAR"))
 						{
 							devList[i].bar = true;
@@ -1200,8 +1204,7 @@ bool parser::createMonitor(char &ch)			//Function to set up monitor points on an
 		if(ch == ';') break;
 		else if(ch == ',')
 		{
-			eof = smz->GetNextChar(ch);
-			
+			eof = smz->GetNextChar(ch);	
 		}
 		else
 		{
@@ -1245,11 +1248,12 @@ bool parser::end_of_file(int nerrors)			//Summarises any errors made in the defi
 	Color::Modifier def(Color::FG_DEFAULT);
 	
 	int n = ConnectionsRequired();					//Counts the total number of connections needed such that there are no unused devices
+	
 	if(n != nconnections)
 	{
   		if(n < nconnections)
   		{
-  			error_report(Unused_device, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), ""); 	//Issues a warning about unused devices being present
+  			error_report(Unused_device, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), ""); 		//Issues a warning about unused devices being present
   			if(debugging) cout << "Devices declared require " <<  ConnectionsRequired() << " connections, but only " << nconnections << " were found" << endl; 
   			cout << endl;
   		}
@@ -1259,7 +1263,9 @@ bool parser::end_of_file(int nerrors)			//Summarises any errors made in the defi
   			if(debugging) cout << "Devices declared require " <<  ConnectionsRequired() << " connections, but " << nconnections << " were found" << endl; 
   		}
 	}
+	
   	if(debugging) cout << endl << "End of Device Definition File" << endl << endl;
+  	
   	if(nerrors > 0)
   	{
   	  	if(nerrors == 1)
@@ -1281,7 +1287,7 @@ bool parser::end_of_file(int nerrors)			//Summarises any errors made in the defi
 	}
 }
 
-int parser::ConnectionsRequired()	//Counts the total number of connections required											
+int parser::ConnectionsRequired()	//Counts the total number of connections required by adding up all the valid device inputs for the declared devices											
 {
 	int sum = 0;
 	for(int i = 0; i < devList.size();i++)
@@ -1567,8 +1573,8 @@ void parser::error_report(er error_type, int error_line, string current_line, st
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			break;
 			
-		case Invalid_clock_input :
-			cout << red << bbr << "Semantic Error 20:" << bbr_off << def << " Clocks must have a positive frequency" << endl 
+		case Invalid_device_input :
+			cout << red << bbr << "Semantic Error 20:" << bbr_off << def << " Device inputs must be strictly positive" << endl 
 			<< "Line " << error_line << ": " << current_line << endl
 			<<  setw(err_pos) << green << bbr << "^" << bbr_off << def << endl;
 			break;
@@ -1633,7 +1639,7 @@ void parser::proceed(char& cur_char, bool& eof) 	//Move to next semicolumn
  	}
 }
 
-vector<dev> parser::getDevList(){
+vector<dev> parser::getDevList(){			//Used in GUI
 	return devList;
 }
 

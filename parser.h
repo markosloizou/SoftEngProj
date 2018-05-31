@@ -20,8 +20,8 @@ typedef struct 			//Device structure to store all defined devices to facilitate 
 	devicekind kind;
 	int input_number;
 	int initState;
-	bool isMonitored;
-	bool bar = false;
+	bool isMonitored;	//These facilitate the setting and resetting of monitor points in the GUI
+	bool bar = false;	//This is only true for QBAR in the Dtype output
 	} dev;
 	
 typedef struct 			//Connections structure to check if the device input has already been used
@@ -51,7 +51,7 @@ enum er {
 		Device_has_no_input, D_input_only, D_output_only,
 		Undefined_device, Duplicate_device, Muptiple_connections,
 		Unused_input, dot_missing, Invalid_D_Input, Invalid_D_Output,
-		Connection_overwrite, Invalid_clock_input, Nonexistent_pin,
+		Connection_overwrite, Invalid_device_input, Nonexistent_pin,
 		Monitor_input,
 		
 		//Warnings
@@ -59,7 +59,7 @@ enum er {
 		No_monitor_points, Reused_connection,
 		
 		//Internal Error
-		Internal_error = 301
+		Internal_error = 301		//We should never get this error in theory
 	 };
 
 
@@ -108,7 +108,7 @@ class parser {
 		void error_report(er error_type, int error_line, string current_line, string error_string); 	//Reports error on command prompt
 		void proceed(char& cur_char, bool& eof); 							//Move to next semicolumn
 		
-		bool debugging = true;					//If true, displays all devices defined, connections made and monitor points declared
+		bool debugging = false;					//If true, displays all devices defined, connections made and monitor points declared
 		
 	
 
@@ -122,7 +122,7 @@ class parser {
 		  monitor* monitor_mod, Scanner* scanner_mod, names* names_mod);
 		/* the constructor takes pointers to various other classes as parameters */
 		
-		vector<dev> getDevList();
+		vector<dev> getDevList();				//This is used by the GUI people
 };
 
 #endif /* parser_h */
