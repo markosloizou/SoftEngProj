@@ -7,45 +7,61 @@
 names::names()  /* the constructor */
 {
   /* over to you */
-  Table table;
+  Table table;	//create the table that will store the internal represeantations and strings
 }
 
+
+//returns the internal representation of the str
 name names::lookup (namestring str)
 {
   /* over to you */
   return table.lookup(str);
 }
 
+
+//returns the internal representation of str
+//blankname if it doesn't exist
 name names::cvtname (namestring str)
 {
   /* over to you */
   return table.findNamestring(str);
 }
 
+
+//prints the string identifier of the given id to the terminal
 void names::writename (name id)
 {
   /* over to you */
   cout << table[(int) id];
 }
 
+//returns the string of the device with the internal representation with the give id
 string names::getName(name id)
 {
 	return table[(int) id];
 }
+
+//returns the length of the string with the given id
 int names::namelength (name id)
 {
   /* over to you */
   string str = table[(int) id];
+  if(str == "-NonExistingName-")
+  {
+  	return -1;
+  }
   return str.length();
 }
 
+//calls the table print entries which is used fore debegging
 void names::printEntries()
 {
 	table.print_entries();
 }
 
 
-
+//overloading operator to return the internal represantation of the
+// id 'i' "-NonEistingName-" was used for debugging
 namestring Table::operator[](int i)
 {
 	try{
@@ -59,6 +75,8 @@ namestring Table::operator[](int i)
 	}
 }
 
+//returns the internal representation of the str if it exists
+//and adds it to the table if it doesn't exist
 name Table::lookup(namestring str)
 {
 	int i =0;
@@ -85,6 +103,7 @@ void Table::print_entries()
 	}
 }
 
+//returns the name of the identifier 'str'
 name Table::findNamestring(namestring str)
 {
 	int i;

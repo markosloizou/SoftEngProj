@@ -26,27 +26,32 @@ Input_Buffer::Input_Buffer(string filestring)
 	getline(inpf, CurrentLine);
 	CurrentLine += '\n';
 	eof = inpf.eof();
+	//initialise the state to the first line and first character
 	currentCharacter = 0;
-	// TODO check what happens with empty file
 	lineNumber = 1;
 }
+
 /*
+//default constructor required for compiling on some compilers
 Input_Buffer::Input_Buffer()
 {
 }
 */
+
 int Input_Buffer::getCharPosition()
 {
 	return currentCharacter;
 }
 
+
+//gets the next character of the file, the internal character position is advanced by one
 bool  Input_Buffer::getChar(char &ch)
 {
 	if(currentCharacter < CurrentLine.length())
 	{
 		ch = CurrentLine[currentCharacter];
 		
-		//	if the enf of file has been reached and we are at the last character of the
+		//	if the eof of file has been reached and we are at the last character of the
 		// current(which is the last) line then return false indicating that the end of 
 		// file has been reached
 		if(eof && (currentCharacter == (CurrentLine.length()-1) ))
@@ -60,7 +65,7 @@ bool  Input_Buffer::getChar(char &ch)
 		}
 		
 	}
-	
+	//if all the line has been read go to the next
 	else if(currentCharacter == CurrentLine.length() && eof == false)
 	{
 		eof = getNextLine();
@@ -68,6 +73,7 @@ bool  Input_Buffer::getChar(char &ch)
 		currentCharacter++;
 		return false;
 	}
+	//eof reached
 	else
 	{	
 		return true;
@@ -75,6 +81,8 @@ bool  Input_Buffer::getChar(char &ch)
 	
 }
 
+
+//reads the next line from the file
 bool Input_Buffer::getNextLine()
 {
 	PreviousLine = CurrentLine;
@@ -86,6 +94,8 @@ bool Input_Buffer::getNextLine()
 	return inpf.eof();
 }
 
+//returns the current character of the file
+//returns '\0' if at the end of  line used for comment skipping
 char Input_Buffer::getCurChar()
 {
 	int next_c = currentCharacter-1;
@@ -99,23 +109,26 @@ char Input_Buffer::getCurChar()
 	}
 }
 
+//returns the current line number
 int Input_Buffer::getCurrentLineNumber()
 {
 	return lineNumber;
 }
 
-
+//returns the current string
 string Input_Buffer::getCurrentLine()
 {
 	return CurrentLine;
 }
 
+//used to skip single line comments, skips to the next line
 bool Input_Buffer::moveToNextLine(char &ch)
 {
 	eof = getNextLine();
 	return eof;
 }
 
+//returns the next character. again used for comment detecting and skipping
 char Input_Buffer::NextCharacter()
 {
 	int next_c = currentCharacter;
@@ -128,7 +141,10 @@ char Input_Buffer::NextCharacter()
 		return '\0';
 	}
 }
-
+//returns the next character after comments
+//different than next character because after comments the 
+//internal position of the current character is not moved
+//to be improved
 char Input_Buffer::afterCommentCharacter()
 {
 	int next_c = currentCharacter+1;
@@ -142,7 +158,7 @@ char Input_Buffer::afterCommentCharacter()
 	}
 }
 
-
+//returns the previous line, used for error reporting
 string Input_Buffer::getPreviousLine()
 {
 	return PreviousLine;
@@ -174,7 +190,9 @@ string Scanner::GetCurrentLine()
 	return str;
 }
 
-//Read the following characters and converts them to a string
+//Read the following digits and converts them to a number stored in numb
+//the next character after the last digit is placed in ch
+//returns the eof flag
 bool Scanner::GetNextNumber(int &numb, char &ch)
 {
 	string s; 
@@ -200,6 +218,7 @@ bool Scanner::GetNextNumber(int &numb, char &ch)
 	return eof_flag;
 }
 
+//returns the eof flag and palces the next character of the file to ch
 bool Scanner::GetNextChar(char &ch)
 {
 	eof_flag = inBuffer->getChar(current_char);
@@ -224,7 +243,7 @@ bool Scanner::GetNextChar(char &ch)
 			
 		}
 	}
-	
+	//multi line comment. skip it
 	if((current_char == '/') && (inBuffer->NextCharacter() == '*'))
 	{
 		skipMultiLineComment();
@@ -240,6 +259,9 @@ bool Scanner::GetNextChar(char &ch)
 }
 
 
+//gets the next string on the text file and retunrs it in string
+//the character following the string is returned in ch
+//returns the eof flag
 bool Scanner::GetNextString(string &str, char &ch)
 {
 	string s;
@@ -274,20 +296,11 @@ bool Scanner::GetNextString(string &str, char &ch)
 			}
 
 		}
+		//multi-line comment detected
 		else if((current_char == '/') && (inBuffer->NextCharacter() == '*'))
 		{
 
 			skipMultiLineComment();
-			 
-			//if(eof_flag == false)
-			//{
-			//	eof_flag = GetNextChar(current_char);
-			//}
-			//if(isspace(current_char))
-			//{
-
-				//skipspaces();
-			//}
 		}
 		else
 		{
@@ -310,45 +323,28 @@ bool Scanner::GetNextString(string &str, char &ch)
 			{
 				break;
 			}
-			/*
-			//if a comment is found skip the line
-			if((current_char == '/') && (inBuffer->NextCharacter() == '/'))
-			{
-				skipSingleLineComment();
-				if(eof_flag == false)
-				{
-					eof_flag = inBuffer->getChar(current_char);
-					break;
-				}
-			}
-	
-			if((current_char == '/') && (inBuffer->NextCharacter() == '*'))
-			{
-				skipMultiLineComment();
-				if(eof_flag == false)
-				{
-					eof_flag = inBuffer->getChar(current_char);
-					break;
-				}
-			}*/
 		}
 	}
+	
 	str = s;
 	ch = current_char;
+	
 	if(isspace(ch))
 	{
 		eof_flag = GetNextChar(ch);
 	}
+	//some strings that resulted in bugs were caugth, and tried to reread the string
 	if((str == "" || str == "\n" || str==" " || str == "\0"|| str=="\t") && eof_flag == false)
 	{
 		 GetNextString(str,ch);
 	}
+	//scanner sometimes read 2-3 empty lines after the eof and returned empty strings
 	if(str == "") eof_flag = true;
 	return eof_flag;
 }
 
 
-
+//skips all the spaces until a non white space character is detected
 void Scanner::skipspaces()
 {
 	while(isspace(current_char) && (eof_flag == false))
@@ -357,16 +353,14 @@ void Scanner::skipspaces()
 	}
 }
 
+//skips singleline comment
 void Scanner::skipSingleLineComment()
 {
-	//cout << "Skipping s line" << endl;
 	eof_flag = inBuffer->moveToNextLine(current_char); 
 	
 	current_char = inBuffer->getCurChar();
 	
-	
-	//cout << "cur character = " << current_char << "  next char = " <<inBuffer->NextCharacter() << endl;
-	//current_char = inBuffer->getCurChar();
+
 	if((int)current_char == 0 && (int)inBuffer->NextCharacter() == 10) 
 	{
 		eof_flag = inBuffer->moveToNextLine(current_char); 
@@ -374,6 +368,9 @@ void Scanner::skipSingleLineComment()
 		current_char = inBuffer->getCurChar();
 	}
 	
+	//different cases that led to bugs when many different combinations of 
+	//single line comments, multi line comments, tabs, line-feeds and new lines
+	//were used
 	if(isspace(current_char)) skipspaces();
 	if((int)current_char == 10) eof_flag = inBuffer->getChar(current_char);
 	if(current_char == '\0')
@@ -395,55 +392,11 @@ void Scanner::skipSingleLineComment()
 	cout << "after single cur character = " << (int)current_char << "  next char = " <<(int)inBuffer->NextCharacter() << endl;
 }
 
+//different cases that led to bugs when many different combinations of 
+//single line comments, multi line comments, tabs, line-feeds and new lines
+//were used
 void Scanner::skipMultiLineComment()
 {	
-	//cout << "Skipping m line" << endl;
-/*
-	bool s = false;
-	while(eof_flag == false)
-	{
-		eof_flag = inBuffer->getChar(current_char);
-		if((current_char == '*') && (inBuffer->NextCharacter() == '/'))
-		{
-			eof_flag = inBuffer->getChar(current_char);
-			//eof_flag = inBuffer->getChar(current_char);
-			//eof_flag = GetNextChar(ch);
-			
-			while(isspace(inBuffer->NextCharacter()))
-			{
-				//cout << "c char: " << current_char << endl;
-				eof_flag = inBuffer->getChar(current_char);
-				s = true;
-			}
-			if(s) eof_flag = inBuffer->getChar(current_char);
-			
-			//cout << "c char: " << current_char << endl;
-			
-			break;
-		}
-		
-	}*/
-	/*
-	char previous_char = current_char;
-	
-	 while(eof_flag == false)
-	 {
-	 	if(previous_char == '*' && current_char == '/')
-	 	{
-	 		eof_flag = inBuffer->getChar(current_char);
-	 		break;
-	 	}
-	 	else
-	 	{
-	 		previous_char = current_char;
-	 		eof_flag = inBuffer->getChar(current_char);
-	 	}
-	 }
-	 */ 
-	 
-	
-	
-	
 	 while(eof_flag == false)
 	 {
 	 	if(current_char == '*' && inBuffer->NextCharacter() == '/')
@@ -457,14 +410,9 @@ void Scanner::skipMultiLineComment()
 	 		eof_flag = inBuffer->getChar(current_char);
 	 	}
 	 }
-	 /*
-	if(isspace(current_char)) skipspaces();
-	if(current_char == '/' && inBuffer->afterCommentCharacter() =='/') skipSingleLineComment();
-	if(isspace(current_char)) skipspaces();
-	if(current_char == '/' && inBuffer->afterCommentCharacter() =='*')  skipMultiLineComment();
-	
-	if(isspace(current_char)) skipspaces();*/
-	 
+	 //different cases that led to bugs when many different combinations of 
+	//single line comments, multi line comments, tabs, line-feeds and new lines
+	//were used
 	if(current_char == '\0') eof_flag = inBuffer->getChar(current_char);
 	if(isspace(current_char)) skipspaces();
 	if(current_char == '\0') eof_flag = inBuffer->getChar(current_char);
@@ -479,26 +427,28 @@ void Scanner::skipMultiLineComment()
 	}
 	if(current_char == '\0') eof_flag = inBuffer->getChar(current_char);
 	if(current_char == '/' && inBuffer->NextCharacter() =='*')  skipMultiLineComment();
-	
-	//cout << "After multi cur character = " << current_char << "  next char = " <<inBuffer->NextCharacter() << endl;
 }
 
+//returns the current character without moving the internal pointer to the next
 bool Scanner::GetCurrentChar(char &ch)
 {
 	ch = current_char;
 	return eof_flag;
 }
 
+//returns the previous line used for debugging
 string Scanner::GetPreviousLine()
 {
 	return inBuffer->getPreviousLine();
 }
 
+//returns the character position used for debugging
 int Scanner::GetCharPosition()
 {
 	return inBuffer->getCharPosition();
 }
-// main used for debugging
+
+// main used for testing and debugging
 /*
 int main()
 {

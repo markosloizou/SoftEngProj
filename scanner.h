@@ -44,9 +44,9 @@ class Input_Buffer{
 		bool moveToNextLine(char &ch); //Move to next line in case of a comment
 		char NextCharacter();//USed to detect comments
 		char afterCommentCharacter();//used to detect repeated comments
-		string getPreviousLine();
-		int getCharPosition();
-		char getCurChar();
+		string getPreviousLine();//return previous line for error reporting
+		int getCharPosition();//returns the position of the character on the current line
+		char getCurChar();//returns the current character without advancing to the next
 };
 
 
@@ -86,7 +86,10 @@ class Scanner{
 		//Returns the current line number
 		int GetCurrentLineNumber();
 		
+		//returns the previous line for error reporting
 		string GetPreviousLine();
+		
+		//returns the current character without advancing to the next
 		int GetCharPosition();
 };
 #endif

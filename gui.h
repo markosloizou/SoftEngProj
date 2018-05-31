@@ -118,6 +118,7 @@ class MyFrame: public wxFrame
   	int cyclescompleted;                    // how many simulation cycles have been completed
   	
   	void OnExit(wxCommandEvent& event);     // event handler for exit menu item
+  	void OnAbout(wxCommandEvent& event);    // event handler for about menu item
   	void ShowGrid(wxCommandEvent &event);
   	void ShowSettings(wxCommandEvent &event);
   	void ShowDialog(wxCommandEvent &event);
@@ -144,50 +145,59 @@ class MyFrame: public wxFrame
   	
   DECLARE_EVENT_TABLE()
 };
+
+
     
 class MyGLCanvas: public wxGLCanvas
 {
- public:
-  MyGLCanvas(wxWindow *parent,MyFrame *f ,wxWindowID id = wxID_ANY, monitor* monitor_mod = NULL, names* names_mod = NULL,
-	     const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize, long style = 0,
-	     const wxString& name = "MyGLCanvas", const wxPalette &palette=wxNullPalette); // constructor
-  void Render(); // function to draw canvas contents
-  
-  void ShowGrid(bool show);
-  void ZoomVert(int zoom);
-  void ZoomHor(int zoom);
-  void save_canvas();
-  void mirror_char(unsigned char *pixels, int width, int height);
-  void run(int cycles);
-  void cont(int cycles);
-  void montr();
-  void goToStart();
-  void goToEnd();
-  
-  
- private:
-  MyFrame *frame;
-  
-  wxGLContext *context;              // OpenGL rendering context
-  bool init;                         // has the OpenGL context been initialised?
-  int pan_x;                         // the current x pan
-  int pan_y;                         // the current y pan
-  double zoom;                       // the current zoom
-  int cyclesdisplayed;               // how many simulation cycles have been displayed
-  monitor *mmz;                      // pointer to monitor class, used to extract signal traces
-  names *nmz;                        // pointer to names class, used to extract signal names
-  void InitGL();                     // function to initialise OpenGL context
-  void OnSize(wxSizeEvent& event);   // event handler for when canvas is resized
-  void OnPaint(wxPaintEvent& event); // event handler for when canvas is exposed
-  void OnMouse(wxMouseEvent& event); // event handler for mouse events inside canvas
-  
-  void printGrid();
-  void printTime();
-  void maxNumber();
+	
+	public:
+	//comstructor
+	MyGLCanvas(wxWindow *parent,MyFrame *f ,wxWindowID id = wxID_ANY, monitor* monitor_mod = NULL, names* names_mod = NULL,
+		 const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize, long style = 0,
+		 const wxString& name = "MyGLCanvas", const wxPalette &palette=wxNullPalette); 
+		 
+		 
+	void Render(); // function to draw canvas contents
 
-  void printSignals();
-  
-  // events
+	void ShowGrid(bool show);//functions used by frame to toggle grid on and off
+	void ZoomVert(int zoom);//changes vertical zoom
+	void ZoomHor(int zoom);//changes horizontal zoom
+	void save_canvas();//saves the canvas
+	void mirror_char(unsigned char *pixels, int width, int height);//mirrors pixels for saving
+	void run(int cycles);//runs the simulation for the number of cycles specified
+	void cont(int cycles);//continues the simulation for the number of cycles specified
+	void montr();//determines which devices are monitored
+	void goToStart();//goes to time zero
+	void goToEnd();//goes to the current time in the simulation
+
+
+	private:
+	MyFrame *frame;					   //pointer to the parent frame, needed to call 
+									   //some functions, such as changing the slider position
+									   //when zooming
+
+	wxGLContext *context;              // OpenGL rendering context
+	bool init;                         // has the OpenGL context been initialised?
+	int pan_x;                         // the current x pan
+	int pan_y;                         // the current y pan
+	double zoom;                       // the current zoom
+	int cyclesdisplayed;               // how many simulation cycles have been displayed
+	monitor *mmz;                      // pointer to monitor class, used to extract signal traces
+	names *nmz;                        // pointer to names class, used to extract signal names
+	void InitGL();                     // function to initialise OpenGL context
+	void OnSize(wxSizeEvent& event);   // event handler for when canvas is resized
+	void OnPaint(wxPaintEvent& event); // event handler for when canvas is exposed
+	void OnMouse(wxMouseEvent& event); // event handler for mouse events inside canvas
+
+	void printGrid();					//displays a grid for the signals 
+	void printTime();					//displayes the simulation cycles at the top
+	void maxNumber();					//used to find the maximum number of signals to use
+
+	void printSignals();				//prints signals to cout, used for debugging
+
+
+	// events
 	void mouseMoved(wxMouseEvent& event);
 	void mouseDown(wxMouseEvent& event);
 	void mouseWheelMoved(wxMouseEvent& event);
@@ -197,56 +207,63 @@ class MyGLCanvas: public wxGLCanvas
 	void keyPressed(wxKeyEvent& event);
 	void keyReleased(wxKeyEvent& event);
 	void dClick(wxKeyEvent& event);
-	
+
 	//keep track of monitored signals
-	int nmonitor = 0;
-	int currentTime = 0;
-	vector< vector<asignal> > sigs; 
-	vector<mons> monitoring;
-	bool * monitored[]; 
-	
+	int nmonitor = 0;	//number of the,
+	int currentTime = 0;//current simulation time
+	vector< vector<asignal> > sigs; //vector of the signals(which are themselves vectors)
+	vector<mons> monitoring;	//vector of monitoring points
+	bool * monitored[]; //array of booleans to indicate which devices were monitored in the
+						//previous run/continue cycle
+
 	//used for testing
-	int signals = 100;
-	int SignalLength = 100;
-	vector< vector<int> > signls; 
-	void generateSignals();
-	
-	
-	//time to start dispaying the signal
-	int start_signal = 0;
-	int end_signal = 10;
-	
-	bool showGrid;
-	
+	int signals = 100;	//signals to generate
+	int SignalLength = 100;//length of each signal
+	vector< vector<int> > signls; //vector that stores the signals
+	void generateSignals();//generate signals randomly(50% high, 50% low)
+
+
+	//time to start dispaying the signal, used for testing and debugging
+	int start_signal = 0;	//start at zero
+	int end_signal = 10;	//default
+
+	bool showGrid;		//boolean to indicate if the grid is to be displayed or not
+
 	//variables used for printng
-	int height;
-	int width;
-	
+	int height;	//height of canvas
+	int width;	//width of canvas
+
+	//heigh and width of signal in pixels
 	float signal_height;
 	float signal_width;
-	
+
+	//the start time and end time of the signal
+	//these are for use in testing
 	int start_signal_time;
 	int end_signal_time;
 	
+	//max number that can be printed vertically
 	int max_number_to_print;
-	float space_between_signals = 20.0;
-	
+	float space_between_signals = 20.0;//vertical space between signals
+
 	int cycles;
-	bool isSmall;
-	
+	bool isSmall;	//if the zoom is far out and the signals are small this is set to true
+
+	//start signal at time startAt, display up to endAt
 	int startAt = 0;
 	int endAt = 10; 
-	
+
 	//for moving the start and end position of the signal
-	bool mouse_left;
-	bool mouse_right;
-	
-	void printRectangle();
-	
+	bool mouse_left;	//true if mouse is on the leftmost part of the canvas
+	bool mouse_right;	//true if mouse is on the rightmost part of the canvas
+
+	void printRectangle();	//used to print a gray rectangle at the edges of the canvas
+
+	//used to monitor the current state of some buttons of the keyboard(like shift ctrl and alt)
 	wxKeyboardState *kState;  
 
-	
-  DECLARE_EVENT_TABLE()
+
+	DECLARE_EVENT_TABLE()
 };
     
     

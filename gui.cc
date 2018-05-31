@@ -13,21 +13,15 @@
 using namespace std;
 
 // MyGLCanvas ////////////////////////////////////////////////////////////////////////////////////
-
+//events commented out were used for debugging and some functionality
+//the mouse events were merged int a single mouse event
 BEGIN_EVENT_TABLE(MyGLCanvas, wxGLCanvas)
-	//EVT_LEFT_DCLICK(MyGLCanvas::dClick)
 	EVT_SIZE(MyGLCanvas::OnSize)
 	EVT_PAINT(MyGLCanvas::OnPaint)
 	EVT_MOUSE_EVENTS(MyGLCanvas::OnMouse)
-	//EVT_MOTION(MyGLCanvas::mouseMoved)
-	//EVT_LEFT_DOWN(MyGLCanvas::mouseDown)
-	//EVT_LEFT_UP(MyGLCanvas::mouseReleased)
-	//EVT_RIGHT_DOWN(MyGLCanvas::rightClick)
-	//EVT_LEAVE_WINDOW(MyGLCanvas::mouseLeftWindow)
 	//EVT_SIZE(MyGLCanvas::resized)
 	EVT_KEY_DOWN(MyGLCanvas::keyPressed)
 	EVT_KEY_UP(MyGLCanvas::keyReleased)
-	//EVT_MOUSEWHEEL(MyGLCanvas::mouseWheelMoved)
 	//EVT_PAINT(MyGLCanvas::render)
 	
 END_EVENT_TABLE()
@@ -42,14 +36,14 @@ MyGLCanvas::MyGLCanvas(wxWindow *parent,MyFrame *f ,wxWindowID id, monitor* moni
   context = new wxGLContext(this);
   mmz = monitor_mod;
   nmz = names_mod;
-  frame = f;
+  frame = f;		//set parent frame
   init = false;
   pan_x = 0;
   pan_y = 0;
-  zoom = 1.0;
+  zoom = 1.0; //set default zoom
   cyclesdisplayed = -1;
   
-  kState = new wxKeyboardState(true,true,true,true);
+  kState = new wxKeyboardState(true,true,true,true); //monitor certain key states(shift,alt,ctrl)
   
   montr(); // get monitors
   
@@ -70,9 +64,11 @@ MyGLCanvas::MyGLCanvas(wxWindow *parent,MyFrame *f ,wxWindowID id, monitor* moni
 	start_signal = 0;
 	end_signal = start_signal + max_number_to_print;
 	
+	//set show grid to true by default and current size to not small
 	showGrid = true;
 	isSmall = false;
 	
+	//set to false to hide the grey box initially
 	mouse_left = false;
 	mouse_right = false;
 }
@@ -88,7 +84,7 @@ void MyGLCanvas::Render()
   asignal s;
   
   int w, h;
-  GetClientSize(&width, &height);
+  GetClientSize(&width, &height); //get width and height
   
 	
   
@@ -178,6 +174,11 @@ void MyGLCanvas::Render()
 	}
 	
 	} 
+	
+	//Used for debugging and testing
+	//draw the artificial signals that can he created by setting the parameters i the header file
+	
+	
 	/*
   else { // draw an artificial trace
 
@@ -231,61 +232,58 @@ void MyGLCanvas::Render()
     
   }*/
 
-  // Example of how to use GLUT to draw text on the canvas
-  //glColor3f(0.0, 0.0, 1.0);
-  //glRasterPos2f(10, 100);
-  //for (i = 0; i < example_text.Len(); i++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, example_text[i]);
 
-  // We've been drawing to the back buffer, flush the graphics pipeline and swap the back buffer to the front
-  
-  
-  
+
+  // We've been drawing to the back buffer, flush the graphics pipeline and swap the back buffer to the front  
   glFlush();
   SwapBuffers();
 }
 
-
+//run the simulation for n cycles
 void MyGLCanvas::run(int cycles)
 {
 	
-	mons currentMonitor;
-	asignal s;
-	currentTime = 0;
+	mons currentMonitor; //create a current monitor point
+	asignal s;			//create a variable for the current state
+	currentTime = 0;	//set the current time to zero
 	
-	monitoring.clear();
-	sigs.clear();
-	montr();
+	monitoring.clear();//clear the previous monitoring points
+	sigs.clear();		//clear the previous singlas
+	montr();			//get new monitors
 	vector<asignal> sv;
 	
+	//run through all the monitor points
 	for(int i=0; i<nmonitor; i++)
 	{
 		currentMonitor = monitoring[i];
-		sv.clear();
+		sv.clear(); //clear the previous signal
 		for(int j = 0; j < cycles; j++)
 		{
 			if(mmz->getsignaltrace(i,j,s))
 			{
-				sv.push_back(s); 
+				sv.push_back(s); //push back signal level
 			}
 			else
 			{
-				sv.push_back(invalid_signal);
+				sv.push_back(invalid_signal); //if some error occured
 			}
 			//cout << "j = " << j << " , s = " << s << endl;
 		}
-		sigs.push_back(sv);
+		sigs.push_back(sv);//add the signal trace o the monitored signal to the signals vector
 	}
 	
-	currentTime = cycles;
+	currentTime = cycles; //set the current time to cycles
 	
-	endAt = currentTime;
+	endAt = currentTime;	//set the end at the last simulated cycle
 	
-	startAt = endAt - floor((width-NAME_SPACE)/signal_width);
+	startAt = endAt - floor((width-NAME_SPACE)/signal_width);	//set start at the smallest number that would
+																//fit in the screen
 	if(startAt < 0) startAt = 0;
 	
 	Render();
 }
 
+//prints the stored signals on the command line, used for debugging
 void MyGLCanvas::printSignals()
 {	
 	for(int i = 0; i < nmonitor; i++)
@@ -299,9 +297,10 @@ void MyGLCanvas::printSignals()
 	}
 }
 
+//function called on continue
 void MyGLCanvas::cont(int cycles)
 {
-
+	//same as in run
 	mons currentMonitor;
 	asignal s;
 	vector<asignal> sv;
@@ -310,7 +309,7 @@ void MyGLCanvas::cont(int cycles)
 	
 	//bool monitored_before[old_m.size()];
 	
-	
+	//get new signals same way as in run
 	for(int i=0; i<nmonitor; i++)
 	{
 		currentMonitor = monitoring[i];
@@ -326,21 +325,15 @@ void MyGLCanvas::cont(int cycles)
 			}
 		}
 		
-	sigs.push_back(sv);
+		sigs.push_back(sv);
 	}
 	
 	
-	currentTime += cycles;
+	currentTime += cycles;		//update start at
 	
 	GetClientSize(&width, &height);
-	
-	
-	//endAt = currentTime;
-	
-	//startAt = endAt - floor((width-NAME_SPACE)/signal_width);
-	
-	//if(startAt < 0) startAt = 0;
-	endAt += cycles;
+
+	endAt += cycles;	//update end at
 	
 	if(endAt - floor((width-NAME_SPACE)/signal_width) > startAt) startAt = endAt -floor((width-NAME_SPACE)/signal_width);
 	
@@ -349,6 +342,7 @@ void MyGLCanvas::cont(int cycles)
 
 }
 
+//get monitros
 void MyGLCanvas::montr()
 {
 	nmonitor = mmz->moncount();
@@ -356,8 +350,9 @@ void MyGLCanvas::montr()
 	
 	//vector<mons> old_m = monitoring;
 	
-	vector<mons> newMons;
+	vector<mons> newMons; //vector of new monitoring points
 	
+	//get new monitoring points and set the start time of all of them at the current time
 	for(int i = 0; i < nmonitor; i++)
 	{
 		currentMonitor.number = i;
@@ -368,15 +363,11 @@ void MyGLCanvas::montr()
 		currentMonitor.startTime = currentTime;
 		
 		
-		
-		/*if(i < monitoring.size())
-		{
-			if(monitoring[i].number == currentMonitor.number) continue;
-		}*/
-		
 		newMons.push_back(currentMonitor);
 	}
 	
+	//check if the device was monitored on the previous run/continue
+	//and if it was monitored set the monitor start time as that of the previous state
 	for(int i = 0; i < newMons.size();i++)
 	{
 		for(int j = 0; j < monitoring.size();j++)
@@ -387,37 +378,20 @@ void MyGLCanvas::montr()
 			}
 		}	
 	}
+	//clear the previous monitor list and set it to the new list
 	monitoring.clear();
 	monitoring = newMons;
 	
-	/*
-	monitored = new bool[monitoring.size()];
-	for(int i = 0; i < monitoring.size())
-	{
-		monitored[i] = false;
-	}*/
-	
-	/*
-	for(int i = 0; i < old_m.size();i++)
-	{
-		for(int j = 0; j < monitoring.size(); j++)
-		{
-			if(old[i].nme == monitoring[j].nme) 
-			{	
-				monitored[i] = true;
-				break;
-			}
-		}
-	}*/
-	
 }
 
+//prints gray rectangle with small orange arrows on left and right for
+//moving left and right in time
 void MyGLCanvas::printRectangle()
 {
 	GetClientSize(&width, &height);
 
 	float x1,y1,x2,y2;
-	
+	//if mouse is left print the shape to the left of the canvas, same for right
 	if(mouse_left)
 	{
 		x1 = 0;
@@ -435,9 +409,12 @@ void MyGLCanvas::printRectangle()
 	
 	
 	glColor4f(0.9,0.9 ,0.9,0.25); // set low opacity for transparency
-	glRectf(x1,y1,x2,y2);
+	glRectf(x1,y1,x2,y2); //draw rectangle
 	
+	//set color for the arrows
 	glColor4f(0.945,0.561,0.408,0.25);
+	
+	//draw the arrows
 	if(mouse_left)
 	{
 		x1 = 40;
@@ -476,6 +453,7 @@ void MyGLCanvas::printRectangle()
 	
 }
 
+//generate 100 fake numbers
 void MyGLCanvas::generateSignals()
 {
 	vector<int> v;
@@ -523,49 +501,52 @@ void MyGLCanvas::OnPaint(wxPaintEvent& event)
   Render();
 }
 
+
 void MyGLCanvas::OnSize(wxSizeEvent& event)
   // Event handler for when the canvas is resized
 {
-  GetClientSize(&width, &height);
-  max_number_to_print = floor((float)height/(signal_height + space_between_signals));
-  //cout << "max to print: " << max_number_to_print << endl;
-  end_signal = start_signal + max_number_to_print;
-  if(end_signal>nmonitor) end_signal = nmonitor;
-  init = false;; // this will force the viewport and projection matrices to be reconfigured on the next paint
-  
-  	
+	GetClientSize(&width, &height);
+	max_number_to_print = floor((float)height/(signal_height + space_between_signals));
+	//cout << "max to print: " << max_number_to_print << endl;
+	end_signal = start_signal + max_number_to_print;
+	if(end_signal>nmonitor) end_signal = nmonitor;
+	init = false;; // this will force the viewport and projection matrices to be reconfigured on the next paint
+
+	//update end time
 	endAt = currentTime;
-	
+
 	startAt = endAt - floor((width-NAME_SPACE)/signal_width);
 	if(startAt < 0) startAt = 0;
 
 }
 
 
-
+//called to change the state for showing the grid or not
 void MyGLCanvas::ShowGrid(bool show)
 {
 	showGrid = show;
 	Render();
 }
 
+//displays time at the top of the canvas
 void MyGLCanvas::printTime()
 {
-	glColor3f(240.0/255.0, 12.0/255.0, 39.0/255.0); //light gray color
+	glColor3f(240.0/255.0, 12.0/255.0, 39.0/255.0); //bright red color
 	for(int i = startAt; i < floor(((float)width-NAME_SPACE)/signal_width)+1+startAt; i ++)
 	{
 		if(isSmall == true && (i%5) != 0) continue; //continue to next cycle if the size is small and i is not a multiple of 5
-		if(i > 100  && (i%5) != 0 && signal_width/SIGNAL_WIDTH < 1.5) continue;
-		if(i>1000  && (i%5) != 0 ) continue;
-		if(isSmall) glRasterPos2f(NAME_SPACE + (i-startAt)*signal_width - 7.5, height - 10);
+		if(i > 100  && (i%5) != 0 && signal_width/SIGNAL_WIDTH < 1.5) continue; //if zoom is small display every fifth number to avoid one going over the next
+		if(i>1000  && (i%5) != 0 ) continue;	//if numbers are large print every fifth to avoid the previous problem
+		if(isSmall) glRasterPos2f(NAME_SPACE + (i-startAt)*signal_width - 7.5, height - 10); //set print position
 		else glRasterPos2f(NAME_SPACE + (i-startAt)*signal_width - 7.5, height - 10);
 		
 		wxString name;
 		name.Printf( "%d", i);
-		for (int k = 0; k < name.Len(); k++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, name[k]);
+		for (int k = 0; k < name.Len(); k++) glutBitmapCharacter(GLUT_BITMAP_HELVETICA_12, name[k]);//print number
 	}
 }
 
+//print grid
 void MyGLCanvas::printGrid()
 {
 	  
@@ -574,7 +555,7 @@ void MyGLCanvas::printGrid()
 	{
 		
     	glColor3f(0.90, 0.90, 0.90); //light gray color
-    	if( (i + startAt)%5 == 0 && isSmall == true) glColor3f(0.5, 0.5, 0.5);
+    	if( (i + startAt)%5 == 0 && isSmall == true) glColor3f(0.5, 0.5, 0.5); //make every fifth line darker when zoomed out
 		//draw time ticks
 		glBegin(GL_LINE_STRIP);//draw line segments
 		glVertex2f(NAME_SPACE + i*signal_width,0);
@@ -679,21 +660,22 @@ void MyGLCanvas::mirror_char(unsigned char *pixels, int width, int height)
     temp_row = NULL;
 }
 
-
+//zooms verticallly
 void MyGLCanvas::ZoomVert(int zoom)
 {
 	float scale;
 	scale = (float)zoom/100.0;
-	signal_height = SIGNAL_HEIGHT*scale;
+	signal_height = SIGNAL_HEIGHT*scale; //uptade the signal height and space between signals
 	space_between_signals = SIGNAL_SPACE*scale;
 	wxString str;
 	str.Printf("");
 	
-	GetClientSize(&width, &height);
+	GetClientSize(&width, &height);	//get new dimensions
  	 max_number_to_print = floor((float)height/(signal_height + space_between_signals));
   	//cout << "max to print: " << max_number_to_print << endl;
-  	end_signal = start_signal + max_number_to_print;
+  	end_signal = start_signal + max_number_to_print;	//calculate the new end point
   	
+  	//check if start signal and end signal are valid 
   	if(start_signal < 0) 
 	{
 		start_signal = 0;
@@ -712,17 +694,17 @@ void MyGLCanvas::ZoomVert(int zoom)
 	Render();
 }
 
+//set horizontal zoom
 void MyGLCanvas::ZoomHor(int zoom)
 {
-		
-	
+	//change the width of each time period using the new zoom	
 	float scale;
 	scale = (float)zoom/100.0;
 	signal_width = SIGNAL_WIDTH*scale;
 	
 	if(scale <= 0.6)
 	{
-		isSmall = true;
+		isSmall = true;	//if 
 	}
 	else
 	{
@@ -736,6 +718,7 @@ void MyGLCanvas::ZoomHor(int zoom)
 	Render();
 }
 
+//set the starting position of the signal at zero
 void MyGLCanvas::goToStart()
 {
 	GetClientSize(&width, &height);
@@ -749,6 +732,7 @@ void MyGLCanvas::goToStart()
  	Render();
 }
 
+//sets the end position at current time
 void MyGLCanvas::goToEnd()
 {
 	GetClientSize(&width, &height);
@@ -768,8 +752,10 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 	str.Printf("");	
 	int w, h;;
 	static int last_x, last_y;
-
-	bool dc = event.LeftDClick();
+	
+	//if there is a double click on the left or right portion of the screen, pan 10 to the left or right
+	// 9 is used since the first click is identified as a single click
+	bool dc = event.LeftDClick(); 
 	if(dc)
 	{
 		if(mouse_right)
@@ -781,7 +767,7 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 			startAt-=9;
 		}
 	}
-
+	//if single click increment by one
 	bool sc = event.LeftDown();
 	if(sc)
 	{
@@ -796,7 +782,13 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 	}
 	
 	
+	/*if there is a wheel rotation:
 	
+		* cltr and alt not pressed -> zoom in/out
+		* ctrl pressed, alt not -> move up and down
+		* alt pressed, control not -> pan left and right
+	
+	*/
 	int r = event.GetWheelRotation();
 	if(r > 0 && event.AltDown() == true  && event.ControlDown() == false)
 	{
@@ -833,7 +825,7 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 		if(startAt < 0) startAt = 0;
 	}
 	
-	
+	//check if start and end of signal are valid positions, if not fix them
 	
 	if(end_signal > nmonitor)
 	{
@@ -846,6 +838,7 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 		end_signal = start_signal+max_number_to_print;
 	}
 	
+	// if mouse is moved to the extreme left or right display the rectangle to move
 	bool mv = event.Moving();
 	 
 	if(mv)
@@ -871,7 +864,7 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 			mouse_right = false;
 		}
 	}
-	
+	// if the mouse left the GL canvas hide the rectangle for panning left and right
 	 if(event.Leaving())
 	 {
 	 	mouse_left = false;
@@ -891,36 +884,11 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 	 }
 	 
 	 Render();
-/*
-  GetClientSize(&w, &h);
-  if (event.ButtonDown()) {
-    last_x = event.m_x;
-    last_y = event.m_y;
-    text.Printf("Mouse button %d pressed at %d %d", event.GetButton(), event.m_x, h-event.m_y);
-  }
-  if (event.ButtonUp()) text.Printf("Mouse button %d released at %d %d", event.GetButton(), event.m_x, h-event.m_y);
-  if (event.Dragging()) {
-    pan_x += event.m_x - last_x;
-    pan_y -= event.m_y - last_y;
-    last_x = event.m_x;
-    last_y = event.m_y;
-    init = false;
-    text.Printf("Mouse dragged to %d %d, pan now %d %d", event.m_x, h-event.m_y, pan_x, pan_y);
-  }
-  if (event.Leaving()) text.Printf("Mouse left window at %d %d", event.m_x, h-event.m_y);
-  if (event.GetWheelRotation() < 0) {
-    zoom = zoom * (1.0 - (double)event.GetWheelRotation()/(20*event.GetWheelDelta()));
-    init = false;
-    text.Printf("Negative mouse wheel rotation, zoom now %f", zoom);
-  }
-  if (event.GetWheelRotation() > 0) {
-    zoom = zoom / (1.0 + (double)event.GetWheelRotation()/(20*event.GetWheelDelta()));
-    init = false;
-    text.Printf("Positive mouse wheel rotation, zoom now %f", zoom);
-  }
-
-  if (event.GetWheelRotation() || event.ButtonDown() || event.ButtonUp() || event.Dragging() || event.Leaving()) Render(text);*/
 }
+
+void MyGLCanvas::keyPressed(wxKeyEvent& event) {}
+void MyGLCanvas::keyReleased(wxKeyEvent& event) {}
+// MyFrame ///////////////////////////////////////////////////////////////////////////////////////
 
 /*
 
@@ -1001,39 +969,6 @@ void MyGLCanvas::mouseReleased(wxMouseEvent& event) {
 	if(dc)
 	{
 		if(mouse_right)
-		{
-			startAt+=10;
-		}
-		if(mouse_left)
-		{
-			startAt-=10;
-		}
-	}
-	else
-	{
-		if(mouse_right)
-		{
-			startAt++;
-		}
-		if(mouse_left)
-		{
-			startAt--;
-		}
-	}
-    
-    if(startAt<0) startAt = 0;
-    else if(startAt > SignalLength) startAt = SignalLength;
-    
-    Render(str,-1);
-}
-void MyGLCanvas::rightClick(wxMouseEvent& event) {}
-*/
-void MyGLCanvas::mouseLeftWindow(wxMouseEvent& event) {}
-void MyGLCanvas::keyPressed(wxKeyEvent& event) {}
-void MyGLCanvas::keyReleased(wxKeyEvent& event) {}
-// MyFrame ///////////////////////////////////////////////////////////////////////////////////////
-
-
 BEGIN_EVENT_TABLE(MyFrame, wxFrame)
 	EVT_MENU(wxID_EXIT, MyFrame::OnExit)
 	EVT_MENU(SHOW_GRID_ID, MyFrame::ShowGrid)
