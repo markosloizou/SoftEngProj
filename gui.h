@@ -8,6 +8,7 @@
 #include <wx/cshelp.h>
 #include <string>
 #include <vector>
+#include <fstream>
 
 #include "names.h"
 #include "devices.h"
@@ -107,11 +108,12 @@ class MyFrame: public wxFrame
 	wxListBox *action_list1;
 	
   	wxKeyboardState *kState;  
-  	wxSimpleHelpProvider * helpD;
+  	wxDialog *helpD;
   	
   	bool show_grid = true;
   	bool show_settings = true;
   	bool show_dialog = true;
+  	bool run_flag = false;
   	
   	int cyclescompleted;                    // how many simulation cycles have been completed
   	

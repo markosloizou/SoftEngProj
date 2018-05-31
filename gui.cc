@@ -631,9 +631,27 @@ void MyGLCanvas::save_canvas()
   	save_path.Printf("");
   	//wxString *save_path = new wxString(wxT(""));
   	save_path = save_path_dialog->GetPath();
+  	string path = string(save_path.mb_str());
+  	size_t pos;
   	if(!(save_path.IsEmpty()))
   	{
-  		save_im->SaveFile(save_path, wxBITMAP_TYPE_PNG);
+  		pos = path.find(".png",0);
+  		if(pos == string::npos)
+  		{
+  			pos = path.find(".",0);
+  			if(pos == string::npos)
+  			{
+  				path = path + ".png";
+  			}
+  			else
+  			{
+  				int len = path.length();
+  				path.erase(pos, len-pos);
+  				path = path + ".png";
+  			}
+  		}
+  		wxString s_path(path);
+  		save_im->SaveFile(s_path, wxBITMAP_TYPE_PNG);
   	}
 }
 
@@ -775,16 +793,19 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 			startAt--;
 		}
 	}
-
-	if(startAt<0) startAt = 0;
-    else if(startAt > currentTime) startAt = currentTime;
-     
-	if(startAt >= currentTime) startAt -= 1;
-	if(startAt < 0) startAt = 0;
+	
+	
 	
 	int r = event.GetWheelRotation();
-
-	if(r>0 &&  event.ControlDown() == true) 
+	if(r > 0 && event.AltDown() == true)
+	{
+		startAt++;
+	}
+	else if(r < 0 && event.AltDown() == true)
+	{
+		startAt--;
+	}
+	else if(r>0 &&  event.ControlDown() == true) 
 	{
 		end_signal += 1;
 		start_signal += 1;
@@ -1517,11 +1538,12 @@ void MyFrame::OnHorzZoomRelease(wxCommandEvent &event)
   	canvas->ZoomHor(horz_zoom_int);
 }
 
+
 void MyFrame::OnRunButton(wxCommandEvent &event)
   	// Event handler for the push button
 {
   	int n, ncycles;
-
+	run_flag = true;
   	cyclescompleted = 0;
   	dmz->initdevices ();
   	mmz->resetmonitor ();
@@ -1535,11 +1557,18 @@ void MyFrame::OnRunButton(wxCommandEvent &event)
 
 void MyFrame::OnContinueButton(wxCommandEvent &event)
 {
-	runnetwork(spin->GetValue());
-	string continue_str = "Simulation continued for an additional " + to_string(spin->GetValue()) + " cycles";
-	print_action(continue_str);
+	if(run_flag == true)
+	{
+		runnetwork(spin->GetValue());
+		string continue_str = "Simulation continued for an additional " + to_string(spin->GetValue()) + " cycles";
+		print_action(continue_str);
 		
-	canvas->cont(spin->GetValue());	
+		canvas->cont(spin->GetValue());
+	}
+	else
+	{
+		wxMessageBox( wxT("You think you could continue before running?"), wxT("Warning"), wxICON_EXCLAMATION);
+	}	
 }
 
 // Event handler for saving the canvas contents which calls a function within the GLCanvas. The image is saved as a PNG
@@ -1860,8 +1889,42 @@ void MyFrame::ShowHelp(wxCommandEvent &event)
 		helpD-> AddHelp(this, "Set the number of clock cycles to run, the default is set to 10. Pressing continue will run the simulation for an additional number of cycles from where the initial run stopped. Pressing the run button again will start from time 0.\n\n The switch state is on when the switch is ticked and off otherwise. Monitoring points can be changed in a similar fashion.\n\n Vertical and horizontal zoom can be set independently from the sliders. Zooming can also be achieved using the mouse wheel.  By pressing control and using the mouse wheel the user can scroll through all the monitored devices. Zooming in while keeping the aspect ratio constant can also be achieved using Ctrl-Z while zooming out is possible using Ctrl-Shift-Z.\n\n The user can go to time zero or to the current time by using the toolbar buttons. \n\n The displayed signals can be saved to a PNG image using the save icon on the toolbar or using the shortcut.\n\n the grid can be toggled on or off. The settings and dialog window can also be toggled on or off to increase the signal viewing area");
 		helpD->ShowHelp(this);
 		*/
+		ifstream hfile;
+		char ch;
+		string hstring, tmp;
+		
+		helpD = new wxDialog(this, -1, "Help", wxDefaultPosition, wxSize(350,500), wxDEFAULT_DIALOG_STYLE);
+		wxTextCtrl textarea(helpD, -1,"", wxDefaultPosition, wxSize(300,400),
+      wxTE_MULTILINE | wxTE_RICH | wxTE_READONLY, wxDefaultValidator, wxTextCtrlNameStr);
+		
+		hfile.open("help.txt");
+		while(!hfile.eof())
+		{
+			getline(hfile,tmp);
+			tmp += "\n";
+			hstring += tmp;
+		}
+		
+		textarea.SetValue(hstring);		
+		//textarea.SetEditable(false);
+		
+		
+		textarea.SetFocus();
+
+		
+		helpD->ShowModal();
 		
 }
+
+
+
+
+
+
+
+
+
+
 
 
 
