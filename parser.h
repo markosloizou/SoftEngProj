@@ -94,7 +94,7 @@ class parser {
 		bool readSwitch(char &ch);				//Function that defines Switches
 		bool readFixedDevice(char &ch, devicekind kind);	//Function that defines XOR and Dtype
 		bool readVariableDevice(char &ch, devicekind kind);	//Function that defines logic gates and clocks
-
+		bool readNot(char &ch);
 		bool defineConnections(char &ch);			//Master function for Phase II
 		devicekind getKind(string identifier);			//Function to retrive internal representation of device from string
 		string isDeviceType(int index);				//Function to convert internal representation of device to string

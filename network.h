@@ -7,7 +7,7 @@
 
 typedef enum {invalid_signal = -1,falling, low, rising, high} asignal;
 typedef enum {aswitch, aclock, andgate, nandgate, orgate,
-	      norgate, xorgate, dtype, baddevice} devicekind;
+	      norgate, xorgate, dtype, anot ,baddevice} devicekind;
 
 struct outputrec {
   name       id;

@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 #include <fstream>
-
+#include <algorithm>
 #include "names.h"
 #include "devices.h"
 #include "monitor.h"
@@ -29,6 +29,8 @@ typedef struct
 	name devId;
 	name pinId;
 } monDev;
+
+// Specify the IDs for the various wxWidgets used
 
 enum { 
 	MY_SPINCNTRL_ID = wxID_HIGHEST + 1,
@@ -67,10 +69,9 @@ class MyFrame: public wxFrame
 {
  	public:
   	MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, const wxSize& size, names *names_mod = NULL, devices *devices_mod = NULL, monitor *monitor_mod = NULL, parser * parser_mod = NULL, long style = wxDEFAULT_FRAME_STYLE); // constructor
-  	void print_action(string message);
+  	void print_action(string message);		// Function to print to the bottom dialog box
   	//void mirror_char(unsigned char *pixels, int width, int height);
-  	void zoom(int n);
-  	
+  	void zoom(int n);	// Updates slider values when zooming is caried out on the canvas. Zooming whilst on the canvas and zooming whilst on the frame are treated as two separate events
   	
  	private:
   	MyGLCanvas *canvas;                     // OpenGL drawing area widget to draw traces
@@ -79,73 +80,84 @@ class MyFrame: public wxFrame
   	monitor *mmz;                           // pointer to monitor class
   	parser *prs;
 	
-	wxWindow *left_canvas_window = new wxWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_SUNKEN, "Canvas");
-	wxWindow *dialog_window = new wxWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE, "Dialog");
-	wxWindow *right_button_window = new wxWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_SUNKEN, "Settings");
+	// Initialise windows used to set the overall layout of the program
+	
+	wxWindow *left_canvas_window = new wxWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_SUNKEN, _("Canvas"));
+	wxWindow *dialog_window = new wxWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_NONE, _("Dialog"));
+	wxScrolledWindow* right_button_window = new wxScrolledWindow(this, wxID_ANY, wxDefaultPosition, wxSize(150,-1), wxVSCROLL, _("Settings"));
+	//wxWindow *right_button_window = new wxWindow(this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxBORDER_SUNKEN, "Settings");
+	
+	// Initialise menu items
 		
 	wxMenu *fileMenu = new wxMenu;
 	wxMenu *viewMenu = new wxMenu;
 	wxMenu *windowMenu = new wxMenu;	
+	
+	// Initilise sizers used for layout
 		
-  	wxBoxSizer *frame_sizer = new wxBoxSizer(wxHORIZONTAL);
-  	wxBoxSizer *left_canvas_sizer = new wxBoxSizer(wxVERTICAL);
-  	wxBoxSizer *canvas_sizer = new wxBoxSizer(wxVERTICAL);
-  	wxBoxSizer *toolbar_sizer = new wxBoxSizer(wxHORIZONTAL);
-  	wxBoxSizer *right_button_sizer = new wxBoxSizer(wxVERTICAL);
-  	wxBoxSizer *dialog_sizer = new wxBoxSizer (wxVERTICAL);
-  	wxSpinCtrl *spin = new wxSpinCtrl(right_button_window, MY_SPINCNTRL_ID, wxString("10"));  	
-  	wxSlider *vert_zoom_slider;
-  	wxSlider *horz_zoom_slider;
-  	wxStaticText *vert_zoom_value = new wxStaticText(right_button_window, wxID_ANY, "x100%");
-  	wxStaticText *horz_zoom_value = new wxStaticText(right_button_window, wxID_ANY, "x100%");
+  	wxBoxSizer *frame_sizer = new wxBoxSizer(wxHORIZONTAL);					// Overall sizer
+  	wxBoxSizer *left_canvas_sizer = new wxBoxSizer(wxVERTICAL);				// Sizer for the left side of the program including the toolbar, the canvas and the dialog box
+  	wxBoxSizer *canvas_sizer = new wxBoxSizer(wxVERTICAL);					// Sizer for the canvas
+  	wxBoxSizer *toolbar_sizer = new wxBoxSizer(wxHORIZONTAL);				// Sizer for the toolbar
+  	wxBoxSizer *right_button_sizer = new wxBoxSizer(wxVERTICAL);			// Sizer for the right side of the program including the widgets
+  	wxBoxSizer *dialog_sizer = new wxBoxSizer (wxVERTICAL);					// Sizer for the bottom dialog box
+  	
+  	wxSpinCtrl *spin = new wxSpinCtrl(right_button_window, MY_SPINCNTRL_ID, wxString("10"));	// Spin control used for the number of cycles that the simulation is carried out for   	
+  	
+  	wxSlider *vert_zoom_slider;		// Slider used for zooming vertically				
+  	wxSlider *horz_zoom_slider;		// Slider used for zooming horizontally
+  	
+  	wxStaticText *vert_zoom_value = new wxStaticText(right_button_window, wxID_ANY, "x100%");		// Used to display the current value of the vertical zoom
+  	wxStaticText *horz_zoom_value = new wxStaticText(right_button_window, wxID_ANY, "x100%");		// Used to display the current value of the horizontal zoom
+  	
   	int action_num = 2;
   	
-  	wxString *switch_list;
-  	wxCheckListBox *toggle_list;
-  	wxString *monitor_list;
-  	wxCheckListBox *monitor_list1;
-  	wxString *action_list;
-	wxListBox *action_list1;
+  	wxString *switch_list;				// Used to initialise a wxString array used for storing the names of the switches in the circuit
+  	wxCheckListBox *toggle_list;		// Initialise the toggleable list of switches
+  	wxString *monitor_list;				// Used to initialise a wxString array used for storing the names of the outputs which can be monitored
+  	wxCheckListBox *monitor_list1;		// Initiliase the toggleable list of outputs that can be monitored
+  	wxString *action_list;				// Used to initialise a wxString which contains a history of the actions taken by the user
+	wxListBox *action_list1;			// Initialise a listbox containing a history of the actions taken by the user. This is easy to append to
 	
-  	wxKeyboardState *kState;  
-  	wxDialog *helpD;
+  	wxKeyboardState *kState;  			
+  	wxDialog *helpD;					// Dialog for the help menu
   	
-  	bool show_grid = true;
-  	bool show_settings = true;
-  	bool show_dialog = true;
-  	bool run_flag = false;
+  	bool show_grid = true;				// Flag for whether the canvas grid is shown
+  	bool show_settings = true;			// Flag for whether the right widgets window is shown
+  	bool show_dialog = true;			// Flag for whether the bottom dialog window containing the history of the user's actions is shown
+  	bool run_flag = false;				// Flag for whether the simulation has already been run
   	
-  	int cyclescompleted;                    // how many simulation cycles have been completed
+  	int cyclescompleted;                    // How many simulation cycles have been completed
   	
-  	void OnExit(wxCommandEvent& event);     // event handler for exit menu item
-  	void OnAbout(wxCommandEvent& event);    // event handler for about menu item
-  	void ShowGrid(wxCommandEvent &event);
-  	void ShowSettings(wxCommandEvent &event);
-  	void ShowDialog(wxCommandEvent &event);
-  	void OnSpin(wxSpinEvent& event);        // event handler for spin control
-  	void SwitchList(wxCommandEvent &event);
-  	void MonitorList(wxCommandEvent &event);
-  	void OnVertZoomRelease(wxCommandEvent &event);
-  	void OnHorzZoomRelease(wxCommandEvent &event);
-  	void OnRunButton(wxCommandEvent& event);   // event handler for push button
-  	void runnetwork(int ncycles);           // function to run the logic network
-  	void OnContinueButton(wxCommandEvent &event);
-  	void SaveCanvas(wxCommandEvent &event);
-  	void OnStart(wxCommandEvent &event);
-  	void OnEnd(wxCommandEvent &event);
-  	void OnZoomIn(wxCommandEvent &event);
-  	void OnZoomOut(wxCommandEvent &event);
-  	void OnMouse(wxMouseEvent &event);
-  	void ShowHelp(wxCommandEvent &event);
-  	void closedHelp(wxCloseEvent &event);
+  	void OnExit(wxCommandEvent& event);     			// Event handler for exit menu item
+  	void ShowGrid(wxCommandEvent &event);				// Event handler to show/hide the canvas grid
+  	void ShowSettings(wxCommandEvent &event);			// Event handler to show/hide the right widgets window 
+  	void ShowDialog(wxCommandEvent &event);				// Event handler to show the bottom dialog window
+  	void OnSpin(wxSpinEvent& event);        			// Event handler for spin control
+  	void SwitchList(wxCommandEvent &event);				// Event handler for toggling an item in the switch list
+  	void MonitorList(wxCommandEvent &event);			// Event handler for toggling an item in the monitor list
+  	void OnVertZoomRelease(wxCommandEvent &event);		// Event handler for zooming vertically using the slider
+  	void OnHorzZoomRelease(wxCommandEvent &event);		// Event handler for zooming horizontally using the slider
+  	void OnRunButton(wxCommandEvent& event);   			// Event handler for the push button
+  	void runnetwork(int ncycles);           			// Function to run the logic network
+  	void OnContinueButton(wxCommandEvent &event);		// Event handler for pressing the continue button
+  	void SaveCanvas(wxCommandEvent &event);				// Event handler for using the saving toolbar icon
+  	void OnStart(wxCommandEvent &event);				// Event handler for panning to the start of the simulation
+  	void OnEnd(wxCommandEvent &event);					// Event handler for panning to the end of the simulation
+  	void OnZoomIn(wxCommandEvent &event);				// Event handler for zooming in (vertically and horizontally by the same amount) using shorcuts
+  	void OnZoomOut(wxCommandEvent &event);				// Event handler for zooming out (vertically and horizontally by the same amount) using shorcuts
+  	void OnMouse(wxMouseEvent &event);					// Event handler for zooming using the mouse wheel
+  	void ShowHelp(wxCommandEvent &event);				// Event handler for opening the help menu
+  	void closedHelp(wxCloseEvent &event);				// Event handler for closing the help menu
   	
-  	vector<dev> devList;
-  	vector<string> switchNames;
+  	vector<dev> devList;								// Vector containing a list of devices which can be easily appended to within a for loop
+  	vector<string> switchNames;							// Vector of strings containing the names of the switches in the circuit which can be easily appended to
   	vector<monDev> MList;
+  	
+  	vector<dev> rcList;
   	
   DECLARE_EVENT_TABLE()
 };
-
 
     
 class MyGLCanvas: public wxGLCanvas
@@ -213,7 +225,7 @@ class MyGLCanvas: public wxGLCanvas
 	int currentTime = 0;//current simulation time
 	vector< vector<asignal> > sigs; //vector of the signals(which are themselves vectors)
 	vector<mons> monitoring;	//vector of monitoring points
-	bool * monitored[]; //array of booleans to indicate which devices were monitored in the
+	bool * monitored; //array of booleans to indicate which devices were monitored in the
 						//previous run/continue cycle
 
 	//used for testing

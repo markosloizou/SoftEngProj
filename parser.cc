@@ -197,6 +197,12 @@ bool parser::defineDevice(char &ch)					//Function to read in device refinitions
 				current_phase = finito;
 				break;
 			}
+			/*
+			else if(str == "NOT")
+			{
+				readNot(ch);
+				break;
+			}*/
 			
 			devicekind kind = isDeviceType((namestring)str);								//Detect what device we want to define
 			if(kind != baddevice)
@@ -240,6 +246,7 @@ devicekind parser::isDeviceType(namestring str) 	//Translates Device Defintion t
 	if(str == "NOR")		return norgate;
 	if(str == "XOR")		return xorgate;
 	if(str == "DTYPE")		return dtype;
+	if(str == "NOT")		return anot;
 	else   				return baddevice;
 }
 
@@ -253,6 +260,7 @@ string parser::isDeviceType(int index)			//Translates internal representation of
 	if(index == 5)			return "NOR";
 	if(index == 6)			return "XOR";
 	if(index == 7)			return "DTYPE";
+	if(index == 8)			return "NOT";
       /*if(index == 8)			return "DATA";		//These are just for reference
 	if(index == 9)			return "CLK";
 	if(index == 10)			return "SET";
@@ -297,6 +305,34 @@ bool parser::readDevice(char& ch,devicekind kind)		//Function to sort devices ac
 		else if(kind  == xorgate || kind == dtype)
 		{
 			readFixedDevice(ch, kind); 	//Define devices with fixed inputs and outputs in other function
+			if(ch == ';')			//All XORs or Dtypes defined
+			{	
+				eof = smz-> GetNextChar(ch);
+				break;
+			}
+			else if(ch == ',')		//More to be defined
+			{
+				eof = smz->GetNextChar(ch);
+				continue;
+			}
+			else if(isalnum(ch))
+			{
+				error_report(semicolumn, smz->GetCurrentLineNumber()-1, smz->GetPreviousLine(), string(1, '\n')); 	
+				proceed(ch,eof);
+				nerrors++;
+				break;
+			}
+			else
+			{
+				error_report(Invalid_character, smz->GetCurrentLineNumber()-1, smz->GetCurrentLine(), string(1, ch)); 	
+				proceed(ch,eof);
+				nerrors++;
+				break;
+			}
+		}
+		else if(kind == anot)
+		{
+			readNot(ch);
 			if(ch == ';')			//All XORs or Dtypes defined
 			{	
 				eof = smz-> GetNextChar(ch);
@@ -745,6 +781,68 @@ bool parser::readVariableDevice(char& ch, devicekind kind)			//Function that def
 	}
 }
 
+bool parser::readNot(char &ch)
+{
+	string str;
+	name id;
+	bool ok; 
+	
+	if(!isalpha(ch))
+	{
+		//error
+	}
+	else
+	{
+		eof = smz->GetNextString(str, ch);
+		
+		if(nmz->cvtname(str) == blankname)				//Check if device identifier already exists
+		{
+			id = nmz->lookup((namestring) str);			//if not get its internal identifier from names.cc
+		}
+		else
+		{
+			if(str == "CLOCK" || str == "AND" || str == "NAND" || str == "OR" || str == "NOR" || str == "XOR" || str == "DTYPE" || str == "DATA" || str == "CLK" || str == "SET" || str == "CLEAR" || str == "Q" || str == "QBAR" || str == "DEVICES" || str == "CONNECTIONS" || str == "MONITOR" || str == "END")
+			{
+				error_report(Reserved_identifier, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 
+				proceed(ch,eof);
+				nerrors++;
+				return false;	
+			}
+			else
+			{
+				error_report(Duplicate_device, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 
+				proceed(ch,eof);
+				nerrors++;
+				return false;
+			}
+		}
+		devicekind kind = nandgate;
+		int number = 1;
+		dmz -> makedevice(kind,id,number,ok);				//if all is well create device internally
+		
+		if(!ok)
+		{
+			//error
+			cout << "did not make device" << endl;
+		}
+		else
+		{
+			dev d;							//Store device internally
+			d.id = id;
+			d.kind = anot;
+			d.Name = str;
+			d.initState = -1;
+			d.isMonitored = false;
+			d.input_number = 1;
+			devList.push_back(d);
+			
+			cout << "Made NOT gate: " << str << endl;	
+			
+		}
+		
+	}
+}
+
 bool parser::defineConnections(char & ch)		//Function to define connections
 {
 	string str; 
@@ -924,7 +1022,7 @@ bool parser::defineConnections(char & ch)		//Function to define connections
 			return false;
 		}
 		
-		if(ch != '.')
+		if(ch != '.' && kind != anot)
 		{
 			error_report(dot_missing, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), string(1, ch)); 
 			proceed(ch,eof);
@@ -979,7 +1077,20 @@ bool parser::defineConnections(char & ch)		//Function to define connections
 
 			inDevName += "." + str;
 		}
-		
+		else if(kind == anot)
+		{
+			inDevPinID = nmz->cvtname("I1");
+			
+			if(ch != ';')
+			{
+				//error expected a semicolon
+				error_report(semicolumn, smz->GetCurrentLineNumber(), smz->GetCurrentLine(), str); 
+				proceed(ch,eof);
+				nerrors++;
+				return false;
+			}
+			
+		}
 		else
 		{
 			eof = smz->GetNextChar(ch);
@@ -1691,7 +1802,7 @@ vector<dev> parser::getDevList(){			//Used in GUI
 // main function used for debugging
 int main()
 {
-	string filename = "test.txt";			//Name of test file
+	string filename = "test1.txt";			//Name of test file
 	
 	names* names_mod     = new names();
 	network* network_mod = new network(names_mod);

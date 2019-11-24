@@ -1,0 +1,46 @@
+DEVICES
+
+OR MYDEVICE1[2];
+
+OR MYDEVICE2[2];
+
+SWITCH on = 1;//test
+AND and[4];
+
+CLOCK ck[1];
+CLOCK ck2[3];
+CLOCK ck3[7];
+
+//ok?
+
+
+CONNECTIONS
+
+ck TO MYDEVICE1.I1;
+ck2 TO MYDEVICE1.I2;
+
+
+
+
+ck2 TO MYDEVICE2.I1;
+ck3 TO MYDEVICE2.I2;
+on TO and.I1;
+ck TO and.I2;
+ck2 TO and.I3;
+
+ck3 TO and.I4;
+
+
+//ok?
+
+MONITOR 
+//MYDEVICE1;
+//MYDEVICE2;
+ck, ck3;
+//ck2;
+//and;
+
+
+END 
+
+

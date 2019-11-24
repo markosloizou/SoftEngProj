@@ -1,0 +1,143 @@
+commit 52ea15d52305afd09e7111c1475f9257532e06a6
+Author: Markos <ml763@cam.ac.uk>
+Date:   Thu May 31 19:36:05 2018 +0100
+
+    Fixed a bug dtypes caused devices to not show in the gui monitor box
+
+commit d3bc18e43b91e3b1e3a1d6d5450a160e22c4da03
+Author: Markos <ml763@cam.ac.uk>
+Date:   Thu May 31 18:07:42 2018 +0100
+
+    Added comments and deleted unused/commented out parts of the code
+
+commit 6f2ce47409b905588da4fadcfd3cc75c77d2c0d4
+Merge: 6744a82 67e28f4
+Author: Markos <ml763@cam.ac.uk>
+Date:   Thu May 31 16:45:30 2018 +0100
+
+    Need newest versions to push
+    
+    Merge branch 'master' of /homes/ml763/GF2_shared/ml763/../Common/SoftEngProj
+
+commit 6744a82db3de48afd6096998802ce6e018b97c54
+Author: Markos <ml763@cam.ac.uk>
+Date:   Thu May 31 16:44:05 2018 +0100
+
+    Fixed some bugs introduced with added mouse functionality
+
+commit 554d0369f5853a0e7fdb756bd1d71c51bc2fa27d
+Author: Markos <ml763@cam.ac.uk>
+Date:   Thu May 31 16:01:24 2018 +0100
+
+    Added a text file with the help text
+
+commit efb560fe78280de549f2942d40172e736a15e49e
+Author: Markos <ml763@cam.ac.uk>
+Date:   Thu May 31 16:00:30 2018 +0100
+
+    Fixed some bugs concerning saving images and added functionality for panning in time with the mouse wheel
+
+commit e17f9fafcfb1e7a2f44242c157f5a0bf40f744c9
+Author: Markos <ml763@cam.ac.uk>
+Date:   Tue May 29 19:59:35 2018 +0100
+
+    Some test files
+
+commit 2ff0a7692b50c68c18f6bd99e574b86e051ea87e
+Author: Markos <ml763@cam.ac.uk>
+Date:   Tue May 29 19:57:11 2018 +0100
+
+    Integrated all the modules into a working logsim.
+    Also changed logsim to take -g or --gui  from the command line to
+    start the gui instead of recompiling it
+
+commit c96080ca36ed74db6b238d436dc1640aeeb77168
+Merge: 9e5e7bb 6eebb32
+Author: Markos <ml763@cam.ac.uk>
+Date:   Tue May 29 14:50:09 2018 +0100
+
+    Need newer versions
+    
+    Merge branch 'master' of /homes/ml763/GF2_shared/ml763/../Common/SoftEngProj
+
+commit 9e5e7bbe732241662ea00673777659fe318a2eeb
+Author: Markos <ml763@cam.ac.uk>
+Date:   Tue May 29 14:49:35 2018 +0100
+
+    ...
+
+commit e727600603bc26a96c2407db52f386762f2fd96d
+Author: Markos <ml763@cam.ac.uk>
+Date:   Tue May 29 11:59:23 2018 +0100
+
+    Added functionality to the GL canvas
+
+commit 4233e2c7d7dac4f33f59a515ca0ebd72c51bce72
+Author: Markos <ml763@cam.ac.uk>
+Date:   Tue May 29 11:35:24 2018 +0100
+
+    Updated class names and added some command line functionality
+
+commit dee1459393acc658eecd1b7840347b2917c035f0
+Author: Markos <ml763@cam.ac.uk>
+Date:   Tue May 29 11:27:26 2018 +0100
+
+    Updates to scanner.h and scanner.cc. New functions added for error reporting and several bugs in relation with repeated comments of different kinds, and new lines after comments followed by more comments were fixed.
+
+commit 54ed4cb2dfe63622f2338be5087f9e4b97fcc41b
+Author: Markos <ml763@cam.ac.uk>
+Date:   Fri May 25 12:10:53 2018 +0100
+
+    Changed makefile to use c++ standard 11
+
+commit 6e59892cebbd4ce57da7886306d21b246a478a1c
+Author: Markos <ml763@cam.ac.uk>
+Date:   Fri May 25 11:52:05 2018 +0100
+
+    Working draft of openGL canvas
+
+commit 8fc386d74e9a29df92da9a727146424be7ba3c7c
+Author: Markos <ml763@cam.ac.uk>
+Date:   Thu May 24 11:07:49 2018 +0100
+
+    Removed some debugging messages that were still outputing
+
+commit b6c4c1858ad9bc781353f2e719b1991ec5b8c583
+Author: Markos <ml763@cam.ac.uk>
+Date:   Tue May 22 18:26:49 2018 +0100
+
+    Fixed a bug in scanner that caused the next character to skip brackets
+
+commit c0207b2c836755d725aefd34b599d755133a853e
+Author: Markos <ml763@cam.ac.uk>
+Date:   Tue May 22 15:13:56 2018 +0100
+
+    Scanner now returns next non-white-space character instead
+    of the next character
+
+commit c456f0f71c56ba8ecbf37d5882a66f6bff2595e7
+Author: Markos <ml763@cam.ac.uk>
+Date:   Tue May 22 12:34:07 2018 +0100
+
+    Changed some function names
+
+commit 11b6ed829997625e34c9ea6e54b68275571382d1
+Author: Markos <ml763@cam.ac.uk>
+Date:   Tue May 22 12:14:49 2018 +0100
+
+    Previous addition not needed, changing back to original
+
+commit f25973eaedab1183226507f7a92054789672c690
+Author: Markos <ml763@cam.ac.uk>
+Date:   Tue May 22 12:03:31 2018 +0100
+
+    Changed network.h and parser.h to contain a common enumaration for the
+    device types.
+
+commit 51f72a617fe564172225e30f71cad9d0b703d3a6
+Author: Markos <ml763@cam.ac.uk>
+Date:   Tue May 22 11:52:27 2018 +0100
+
+    The classes names and scanner have been completed and tested
+    
+    The files include commented out mains that can be used for debugging.

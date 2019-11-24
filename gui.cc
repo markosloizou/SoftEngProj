@@ -577,7 +577,6 @@ void MyGLCanvas::printGrid()
 	
 }
 
-
 // Function to create a wxImage from the canvas contents and save it as a PNG image in a location defined by the user using a wxFileDialog
 
 void MyGLCanvas::save_canvas()
@@ -589,26 +588,24 @@ void MyGLCanvas::save_canvas()
   	
   	// Extract pixels from the canvas
   	
-  	pixels = (unsigned char *) malloc(3 * width * height);
+  	pixels = (unsigned char *) malloc(3 * width * height); // RGB uses three characters per pixel
   	glPixelStorei(GL_PACK_ALIGNMENT, 1);
   	glReadBuffer(GL_BACK_RIGHT);
   	glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, pixels);
 
-	// This mirrors the unsigned char pixels to ensure that the resulting image is in the right orientation after the subsequent mirroring
+	// This mirrors the unsigned char pixels to ensure that the resulting image is in the right orientation after the subsequent mirroring, which seems to be needed to avoid a segmentation fault
 
 	mirror_char(pixels, width, height);
 	
   	save_im = new wxImage(width, height);
-  	save_im->SetData(pixels, width, height, false);
+  	save_im->SetData(pixels, width, height, false);		// Sets the wxImage using the pixel data
   	
-  	// Removing this mirror would cause a segmentation fault
+  	save_im->Mirror(false);		// Removing this mirror appears to cause a segmentation fault
   	
-  	save_im->Mirror(false);
+  	// Bring up the file dialog to choose the path where the image is saved
   	
   	wxFileDialog *save_path_dialog = new wxFileDialog(this, wxFileSelectorPromptStr, wxEmptyString, wxEmptyString, wxFileSelectorDefaultWildcardStr, wxFD_SAVE);
   	save_path_dialog->ShowModal();
-  	
-  	// Only attempt to save the image if a name is given by the user
   	
   	wxString save_path;
   	save_path.Printf("");
@@ -616,9 +613,15 @@ void MyGLCanvas::save_canvas()
   	save_path = save_path_dialog->GetPath();
   	string path = string(save_path.mb_str());
   	size_t pos;
+  	
+  	// Only attempt to save the image if a filename is specified by the user
+  	
   	if(!(save_path.IsEmpty()))
   	{
   		pos = path.find(".png",0);
+  		
+  		// Always save the image with the extension .png even if the user specifies a different format (i.e. .jpg) to avoid errors. This function could be expanded to save the image as a range of different file formats
+  		
   		if(pos == string::npos)
   		{
   			pos = path.find(".",0);
@@ -643,10 +646,10 @@ void MyGLCanvas::save_canvas()
 void MyGLCanvas::mirror_char(unsigned char *pixels, int width, int height)
 {
     int rows = height / 2;
-    int row_stride = width * 3;
+    int row_stride = width * 3; // RGB uses three characters per pixel
     unsigned char* temp_row = (unsigned char*)malloc(row_stride);
 
-    int source_offset, target_offset;
+    int source_offset, target_offset; 
 
     for (int rowIndex = 0; rowIndex < rows; rowIndex++)
     {
@@ -889,6 +892,7 @@ void MyGLCanvas::OnMouse(wxMouseEvent& event)
 
 void MyGLCanvas::keyPressed(wxKeyEvent& event) {}
 void MyGLCanvas::keyReleased(wxKeyEvent& event) {}
+
 // MyFrame ///////////////////////////////////////////////////////////////////////////////////////
 
 BEGIN_EVENT_TABLE(MyFrame, wxFrame)
@@ -938,21 +942,35 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
   	
   	
   	if (nmz == NULL || dmz == NULL || mmz == NULL|| prs == NULL) {
-		cout << "Cannot operate GUI without names, devices, parser and monitor classes" << endl;
+		cout << _("Cannot operate GUI without names, devices, parser and monitor classes") << endl;
 		exit(1);
   	}
   	
-  	devList = prs->getDevList();
+  	devList = prs->getDevList(); // Gets the list of devices from the parser
   	
-  	//create list of switches
+  	sort(devList.begin(), devList.end(), [ ]( const dev& lhs, const dev& rhs )
+	{
+	   return lhs.Name < rhs.Name;
+	}
+	);  
+  	
+  	// Creates a list of switches
+  	
   	int c = 0;
-  	for(int i = 0; i < devList.size();i++)
+  	
+  	// Gets number of switches so that the array of wxStrings can be initialised
+  	
+  	for(int i = 0; i < devList.size(); i++)
   	{
-  		if(devList[i].kind == aswitch) c++ ;
+  		if(devList[i].kind == aswitch) c++;
+  		if(devList[i].kind == anrc) rcList.push_back(devList[i]);
   	}
   	switch_list = new wxString[c];
   	c = 0;
-  	for(int i = 0; i < devList.size();i++)
+  	
+  	// Adds each switch to the array of wxStrings
+  	
+  	for(int i = 0; i < devList.size(); i++)
   	{
   		if(devList[i].kind == aswitch)
   		{
@@ -961,33 +979,37 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
   		}
   	}
   	
-  	//create toggle list
+  	// Creates toggle list used to display and toggle switches
+  	
   	toggle_list = new wxCheckListBox(right_button_window, SWITCH_LISTBOX_ID, wxDefaultPosition, wxSize(125, 95), c, switch_list);
   	
-  	//check switches that have initial state = 0
+  	// Checks (on the displayed wxCheckListBox) the array items for which the corresponding switches start off as being switched on, as defined in the circuit file
+  	
   	c = 0;
-  	for(int i = 0; i < devList.size();i++)
+  	for(int i = 0; i < devList.size(); i++)
   	{
   		if(devList[i].kind == aswitch)
   		{
   			if(devList[i].initState == 1)
   			{
-  				toggle_list->Check(c,true);
+  				toggle_list->Check(c, true);
   			}
   			c++;
   		}
   	}	
   	
-  	//create device list for monitoring
+  	// Creates device list for monitoring
+  	
   	c = 0;
   	for(int i= 0; i < devList.size(); i++)
   	{
   		c++;
-  		if(devList[i].kind == dtype) c++;
+  		if(devList[i].kind == dtype) c++; // Increment count twice if the device is a DType as it will have two outputs
   	}
   	
   	monitor_list = new wxString[c];
-
+  	
+  	// DTypes contain two outputs, so two separate monitors are needed
   	
   	int dtypes_added = 0;
   	for(int i = 0; i < devList.size();i++)
@@ -1049,48 +1071,43 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
   		}
   		else if(devList[i].kind == dtype)
   		{
-  			i++;
+  			dtypes_added++;
   		}
   	}
-
   	
-  	action_list = new wxString[1]{wxT("1: Initialised program")};
+  	// Creates a wxListBox, which is placed at the bottom of the frame, to output a history of actions taken by the user. A wxListBox was chosen since it is easy to append to
+  	
+  	action_list = new wxString[1]{_("1: Initialised program")};
   	action_list1 = new wxListBox(dialog_window, wxID_ANY, wxDefaultPosition, wxSize(-1, 72), 1, action_list);
   	
-  	/*switch_list = new wxString[6]{wxT("SW1"), wxT("SW2"), wxT("SW3"), wxT("SW4"), wxT("SW5"), wxT("SW6")};
-  	toggle_list = new wxCheckListBox(right_button_window, SWITCH_LISTBOX_ID, wxDefaultPosition, wxSize(125, 95), 6, switch_list);  	
-  	monitor_list = new wxString[6]{wxT("M1"), wxT("M2"), wxT("M3"), wxT("M4"), wxT("M5"), wxT("M6")};
-	monitor_list1 = new wxCheckListBox(right_button_window, MONITOR_LISTBOX_ID, wxDefaultPosition, wxSize(125, 95), 6, monitor_list);
-  	action_list = new wxString[1]{wxT("1: Initialised program")};
-  	action_list1 = new wxListBox(dialog_window, wxID_ANY, wxDefaultPosition, wxSize(-1, 72), 1, action_list);*/
-  	
 	devList = prs->getDevList();
+	
 	// Set up top menu bar
 	
-	fileMenu->Append(MY_FILE_RUN_ID, "&Run \tCtrl-R");
-	fileMenu->Append(MY_FILE_CONTINUE_ID,"&Continue\tCtrl-C");
-	fileMenu->Append(MY_FILE_SAVE_ID,"&Save As...\tCtrl-S");
+	fileMenu->Append(MY_FILE_RUN_ID, _("&Run \tCtrl-R"));
+	fileMenu->Append(MY_FILE_CONTINUE_ID,_("&Continue\tCtrl-C"));
+	fileMenu->Append(MY_FILE_SAVE_ID,_("&Save As...\tCtrl-S"));
 	fileMenu->AppendSeparator();
-	fileMenu->Append(HELP_MENU_ID, "&Help\tCtrl-H");
-	fileMenu->Append(wxID_EXIT, "&Quit\tCtrl-Q");
+	fileMenu->Append(HELP_MENU_ID, _("&Help\tCtrl-H"));
+	fileMenu->Append(wxID_EXIT, _("&Quit\tCtrl-Q"));
 	
-	viewMenu->Append(START_MENU_ID,"Go To &Start\tShift-Ctrl-S");
-	viewMenu->Append(END_MENU_ID,"Go To &End\tShift-Ctrl-E");
+	viewMenu->Append(START_MENU_ID,_("Go To &Start\tShift-Ctrl-S"));
+	viewMenu->Append(END_MENU_ID,_("Go To &End\tShift-Ctrl-E"));
 	viewMenu->AppendSeparator();
-	viewMenu->Append(ZOOM_IN_MENU_ID,"Zoom In\tCtrl-Z");
-	viewMenu->Append(ZOOM_OUT_MENU_ID,"Zoom Out\tShift-Ctrl-Z");
+	viewMenu->Append(ZOOM_IN_MENU_ID,_("Zoom In\tCtrl-Z"));
+	viewMenu->Append(ZOOM_OUT_MENU_ID,_("Zoom Out\tShift-Ctrl-Z"));
 	viewMenu->AppendSeparator();
-	viewMenu->Append(SHOW_GRID_ID, "Hide &Grid\tCtrl-G");
+	viewMenu->Append(SHOW_GRID_ID, _("Hide &Grid\tCtrl-G"));
 	
-	windowMenu->Append(SHOW_SETTINGS_ID, "&Hide Settings Window");
-	windowMenu->Append(SHOW_DIALOG_ID, "&Hide Dialog Window");
+	windowMenu->Append(SHOW_SETTINGS_ID, _("&Hide Settings Window"));
+	windowMenu->Append(SHOW_DIALOG_ID, _("&Hide Dialog Window"));
 	wxMenuBar *menuBar = new wxMenuBar;
-	menuBar->Append(fileMenu, "&File");
-	menuBar->Append(viewMenu, "&View");
-	menuBar->Append(windowMenu, "&Window");
+	menuBar->Append(fileMenu, _("&File"));
+	menuBar->Append(viewMenu, _("&View"));
+	menuBar->Append(windowMenu, _("&Window"));
 	SetMenuBar(menuBar);
 	
-	// Set up canvas
+	// Set up canvas using GLCanvas. This is where the signals are drawn
   
 	canvas = new MyGLCanvas(left_canvas_window,this ,wxID_ANY, monitor_mod, names_mod);
 	
@@ -1098,7 +1115,7 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
 	
 	left_canvas_window->SetSizer(canvas_sizer);
 	
-	// Set up dialog box to output changes made 
+	// Set up dialog box to output changes made using a wxListBox
   	
   	dialog_sizer->Add(action_list1, 0, wxEXPAND);
   	
@@ -1108,25 +1125,25 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
 
 	// Set up controls for entering the number of cycles displayed
 
-	right_button_sizer->Add(new wxStaticText(right_button_window, wxID_ANY, "Number of Cycles"), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
+	right_button_sizer->Add(new wxStaticText(right_button_window, wxID_ANY, _("Number of Cycles")), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 10);
 
 	right_button_sizer->Add(spin, 0 , wxALIGN_CENTER_HORIZONTAL|wxALL, 5);
 
 	// Set up controls for toggling switches
 
-	right_button_sizer->Add(new wxStaticText(right_button_window, wxID_ANY, "Switch State"), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 5);
+	right_button_sizer->Add(new wxStaticText(right_button_window, wxID_ANY, _("Switch State")), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 5);
 
 	right_button_sizer->Add(toggle_list, 0, wxALIGN_CENTER_HORIZONTAL|wxALL, 5);
 	
 	// Set up controls for toggling monitor points
 
-	right_button_sizer->Add(new wxStaticText(right_button_window, wxID_ANY, "Monitor Points"), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 5);
+	right_button_sizer->Add(new wxStaticText(right_button_window, wxID_ANY, _("Monitor Points")), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 5);
 
 	right_button_sizer->Add(monitor_list1, 0, wxALIGN_CENTER_HORIZONTAL|wxALL, 5);
 	
 	// Set up controls for vertical zoom slider
 
-	right_button_sizer->Add(new wxStaticText(right_button_window, wxID_ANY, "Vertical Zoom"), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 5);
+	right_button_sizer->Add(new wxStaticText(right_button_window, wxID_ANY, _("Vertical Zoom")), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 5);
    
 	right_button_sizer->Add(vert_zoom_value, 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 5);
 
@@ -1136,7 +1153,7 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
 	
 	// Set up controls for horizontal zoom slider
 
-	right_button_sizer->Add(new wxStaticText(right_button_window, wxID_ANY, "Horizontal Zoom"), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 5);
+	right_button_sizer->Add(new wxStaticText(right_button_window, wxID_ANY, _("Horizontal Zoom")), 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 5);
   
   	right_button_sizer->Add(horz_zoom_value, 0, wxALIGN_CENTER_HORIZONTAL|wxTOP|wxLEFT|wxRIGHT, 5);
 
@@ -1146,28 +1163,30 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
   	
   	// Set up control for run button
 
-  	right_button_sizer->Add(new wxButton(right_button_window, MY_RUN_BUTTON_ID, "Run"), 0, wxALIGN_CENTER_HORIZONTAL|wxALL, 5);
+  	right_button_sizer->Add(new wxButton(right_button_window, MY_RUN_BUTTON_ID, _("Run")), 0, wxALIGN_CENTER_HORIZONTAL|wxALL, 5);
   	
   	// Set up control for continue button  
   
-  	right_button_sizer->Add(new wxButton(right_button_window, MY_CONTINUE_BUTTON_ID, "Continue"), 0, wxALIGN_CENTER_HORIZONTAL|wxALL, 5);   	
+  	right_button_sizer->Add(new wxButton(right_button_window, MY_CONTINUE_BUTTON_ID, _("Continue")), 0, wxALIGN_CENTER_HORIZONTAL|wxALL, 5);   	
   	right_button_window->SetSizer(right_button_sizer);
   	
-	// Set up toolbar
+	// Set up toolbar icons
 	
-	wxBitmap play_icon(wxT("play.png"), wxBITMAP_TYPE_PNG);
-	wxBitmap continue_icon(wxT("continue.png"), wxBITMAP_TYPE_PNG);
+	//wxBitmap play_icon(wxT("play.png"), wxBITMAP_TYPE_PNG);
+	//wxBitmap continue_icon(wxT("continue.png"), wxBITMAP_TYPE_PNG);
 	wxBitmap save_icon(wxT("save.png"), wxBITMAP_TYPE_PNG);
 	wxBitmap start_icon(wxT("start.png"),wxBITMAP_TYPE_PNG);
 	wxBitmap end_icon(wxT("end.png"),wxBITMAP_TYPE_PNG);
 	wxToolBar *top_toolbar = new wxToolBar(this, TOOLBAR_ID);
 	
-	top_toolbar->AddTool(RUN_TOOLBAR_ID, wxT("Play"), play_icon,"Run" , wxITEM_NORMAL );
-	top_toolbar->AddTool(CONTINUE_TOOLBAR_ID, wxT("Continue"), continue_icon, "Continue", wxITEM_NORMAL );
-	top_toolbar->AddTool(START_TOOLBAR_ID,wxT("Go To Start"), start_icon, "Go To Start",  wxITEM_NORMAL );
-	top_toolbar->AddTool(END_TOOLBAR_ID,wxT("Go To End"), end_icon, "Go To End",  wxITEM_NORMAL );
-	top_toolbar->AddTool(SAVE_TOOLBAR_ID, wxT("Save Circuit"), save_icon, "Save As",  wxITEM_NORMAL);
-	top_toolbar->Realize();
+	// Add tools to the toolbar
+	
+	//top_toolbar->AddTool(RUN_TOOLBAR_ID, wxT("Play"), play_icon,"Run" , wxITEM_NORMAL );
+	//top_toolbar->AddTool(CONTINUE_TOOLBAR_ID, wxT("Continue"), continue_icon, "Continue", wxITEM_NORMAL );
+	top_toolbar->AddTool(START_TOOLBAR_ID,_("Go To Start"), start_icon, "Go To Start",  wxITEM_NORMAL );
+	top_toolbar->AddTool(END_TOOLBAR_ID,_("Go To End"), end_icon, "Go To End",  wxITEM_NORMAL );
+	top_toolbar->AddTool(SAVE_TOOLBAR_ID, _("Save Circuit"), save_icon, _("Save As"),  wxITEM_NORMAL);
+	top_toolbar->Realize(); // Create the toolbar
 	
 	toolbar_sizer->Add(top_toolbar, 0, wxEXPAND);	
   	
@@ -1183,33 +1202,37 @@ MyFrame::MyFrame(wxWindow *parent, const wxString& title, const wxPoint& pos, co
 
   	frame_sizer->Add(right_button_window, 0, wxEXPAND|wxALIGN_TOP|wxALIGN_RIGHT|wxTOP|wxBOTTOM|wxRIGHT, 5);
   	
-  	// Set the main sizer 
+  	// Allow the settings windowed to be scrolled
+  	
+  	right_button_window->FitInside();
+  	right_button_window->SetScrollbars(20, 20, 50, 50);  	
+  	
+  	// Set the main sizer for the application window
 
   	SetSizeHints(400, 400);
   	SetSizer(frame_sizer);
   
 }
 
+// Event handler for the exit menu item
+
 void MyFrame::OnExit(wxCommandEvent &event)
-	// Event handler for the exit menu item
 {
   	Close(true);
 }
 
-
-
-// Show/Hide the guidance grid in the canvas
+// Show/Hide the grid in the canvas
 
 void MyFrame::ShowGrid(wxCommandEvent &event)
 {
 	canvas->ShowGrid(!show_grid);
 	if(show_grid)
 	{
-	viewMenu->SetLabel(SHOW_GRID_ID, "Show &Grid\tCtrl-G");
+		viewMenu->SetLabel(SHOW_GRID_ID, _("Show &Grid\tCtrl-G"));
 	}
 	else
 	{
-	viewMenu->SetLabel(SHOW_GRID_ID, "Hide &Grid\tCtrl-G");
+		viewMenu->SetLabel(SHOW_GRID_ID, _("Hide &Grid\tCtrl-G"));
 	}
 	show_grid = !show_grid;
 }
@@ -1221,37 +1244,38 @@ void MyFrame::ShowSettings(wxCommandEvent &event)
 	right_button_window->Show(!show_settings);
 	if(show_settings)
 	{
-	windowMenu->SetLabel(SHOW_SETTINGS_ID, "&Show Settings Window");
+		windowMenu->SetLabel(SHOW_SETTINGS_ID, _("&Show Settings Window"));
 	}
 	else
 	{
-	windowMenu->SetLabel(SHOW_SETTINGS_ID, "&Hide Settings Window");
+		windowMenu->SetLabel(SHOW_SETTINGS_ID, _("&Hide Settings Window"));
 	}
-	frame_sizer->Layout();
+	frame_sizer->Layout();	// Causes the layout to update and actually show/hide the sizer 
 	show_settings = !show_settings;
 }
 
-// Show/Hide the bottom diarunnetworklog box showing the actions carried out by the user since the program was started
+// Show/Hide the bottom dialog box showing the actions carried out by the user since the program was started
 
 void MyFrame::ShowDialog(wxCommandEvent &event)
 {
 	dialog_window->Show(!show_dialog);
 	if(show_dialog)
 	{
-	windowMenu->SetLabel(SHOW_DIALOG_ID, "&Show Dialog Window");
+		windowMenu->SetLabel(SHOW_DIALOG_ID, _("&Show Dialog Window"));
 	}
 	else
 	{
-	windowMenu->SetLabel(SHOW_DIALOG_ID, "&Hide Dialog Window");
+		windowMenu->SetLabel(SHOW_DIALOG_ID, _("&Hide Dialog Window"));
 	}
-	left_canvas_sizer->Layout();
+	left_canvas_sizer->Layout();	// Causes the layout to update and actually show/hide the sizer
 	show_dialog = !show_dialog;
 }
 
+// Event handler for the spin control
+
 void MyFrame::OnSpin(wxSpinEvent &event)
-  	// Event handler for the spin control
 {	
-  	string cycle_num_str = "Number of simulated cycles set to " + to_string(event.GetPosition());
+  	string cycle_num_str = _("Number of simulated cycles set to ") + to_string(event.GetPosition());
   	print_action(cycle_num_str);
 }
 
@@ -1265,7 +1289,7 @@ void MyFrame::SwitchList(wxCommandEvent &event)
 	
 	string switch_str;
 	int switch_index = event.GetInt();
-	string switch_choice = string(switch_list[switch_index].mb_str());
+	string switch_choice = string(switch_list[switch_index].mb_str()); 	// Convert wxString to a standard string
 	
 	devid = nmz->cvtname(switch_choice);
 	
@@ -1282,22 +1306,22 @@ void MyFrame::SwitchList(wxCommandEvent &event)
 	{
 		if(toggle_list->IsChecked(switch_index))
 		{
-			switch_str = "Switch " + switch_choice + " toggled on";
+			switch_str = _("Switch ") + switch_choice + _(" toggled on");
 		}
 		else
 		{
-			switch_str = "Switch " + switch_choice + " toggled off";
+			switch_str = _("Switch ") + switch_choice + _(" toggled off");
 		}
 	}
 	else
 	{
 		if(toggle_list->IsChecked(switch_index))
 		{
-			switch_str = "Could not toggle switch " + switch_choice + " on";
+			switch_str = _("Could not toggle switch ") + switch_choice + _(" on");
 		}
 		else
 		{
-			switch_str = "Could not toggle switch " + switch_choice + " off";
+			switch_str = _("Could not toggle switch ") + switch_choice + _(" off");
 		}
 	}
 	print_action(switch_str);
@@ -1314,31 +1338,33 @@ void MyFrame::MonitorList(wxCommandEvent &event)
 	bool ok;
 	
 	if(monitor_list1->IsChecked(monitor_index))
-	{
-		//device = nmz->cvtname(monitor_str);
-		//deviceOut = -1; //Again, not very obvious...
-
-		//nmz -> printEntries();  
+	{  
+	
+		// Creates a new monitor when an item is checked
+	
 		mmz->makemonitor(MList[monitor_index].devId,MList[monitor_index].pinId,ok);
 		if(ok)
 		{
-			monitor_str = "Added monitor to " + monitor_choice;
+			monitor_str = _("Added monitor to ") + monitor_choice;
 		}
 		else
 		{
-			monitor_str = "Could not add monitor to " + monitor_choice;
+			monitor_str = _("Could not add monitor to ") + monitor_choice;
 		}
 	}
 	else
 	{
+	
+		// Removes a monitor when an item is unchecked
+	
 		mmz->remmonitor(MList[monitor_index].devId,MList[monitor_index].pinId,ok);
 		if(ok)
 		{
-			monitor_str = "Removed monitor from " + monitor_choice;
+			monitor_str = _("Removed monitor from ") + monitor_choice;
 		}
 		else
 		{
-			monitor_str = "Could not remove monitor from " + monitor_choice;
+			monitor_str = _("Could not remove monitor from ") + monitor_choice;
 		}
 	}
 	
@@ -1346,7 +1372,7 @@ void MyFrame::MonitorList(wxCommandEvent &event)
 	canvas->montr();
 }
 
-// Functions to zoom vertically and horizontally on the canvas controlled by two separate sliders
+// Functions to zoom vertically and horizontally on the canvas controlled by two separate sliders (OnVertZoomRelease & OnHorzZoomRelease)
 
 void MyFrame::OnVertZoomRelease(wxCommandEvent &event)
 {
@@ -1354,6 +1380,8 @@ void MyFrame::OnVertZoomRelease(wxCommandEvent &event)
 
   	float vert_zoom_fl;
   	int vert_zoom_int;
+
+	// This makes it so that the zooming out part of the slider bar takes up as much space as the zooming in part
 
   	if(vert_sliderpos <= 50) 
   	{
@@ -1370,7 +1398,7 @@ void MyFrame::OnVertZoomRelease(wxCommandEvent &event)
   	string vert_zoom_str = "x" + to_string(vert_zoom_int) + "%";
   	wxString vert_zoom_wxstr(vert_zoom_str.c_str(), wxConvUTF8);
 
-  	vert_zoom_value->SetLabel(vert_zoom_wxstr);
+  	vert_zoom_value->SetLabel(vert_zoom_wxstr);		// Sets the value of the text string used to display the zoom value
   
   	canvas->ZoomVert(vert_zoom_int);
 }
@@ -1381,6 +1409,8 @@ void MyFrame::OnHorzZoomRelease(wxCommandEvent &event)
 
   	float horz_zoom_fl;
   	int horz_zoom_int;
+  	
+	// This makes it so that the zooming out part of the slider bar takes up as much space as the zooming in part
 
   	if(horz_sliderpos <= 50) 
   	{
@@ -1397,26 +1427,36 @@ void MyFrame::OnHorzZoomRelease(wxCommandEvent &event)
   	string horz_zoom_str = "x" + to_string(horz_zoom_int) + "%";
   	wxString horz_zoom_wxstr(horz_zoom_str.c_str(), wxConvUTF8);
 
-  	horz_zoom_value->SetLabel(horz_zoom_wxstr);
+  	horz_zoom_value->SetLabel(horz_zoom_wxstr);		// Sets the value of the text string used to display the zoom value
   
   	canvas->ZoomHor(horz_zoom_int);
 }
 
+// Event handler for the run button
 
 void MyFrame::OnRunButton(wxCommandEvent &event)
-  	// Event handler for the push button
 {
   	int n, ncycles;
 	
   	ncycles = spin->GetValue();
   	if(ncycles > 0)
   	{
+  		for(int i = 0; i < rcList.size(); i++)
+		{
+			bool ok = true;
+			dmz -> setswitch(rcList[i].id, high, ok);
+			if(!ok)
+			{
+				cout << _("Could not change RC state") << endl;
+			}
+		}
+		
   		cyclescompleted = 0;
 	  	dmz->initdevices ();
 	  	mmz->resetmonitor ();
 	  	
 	  	
-	  	string run_str = "Simulation started for " + to_string(spin->GetValue()) + " cycles";
+	  	string run_str = _("Simulation started for ") + to_string(spin->GetValue()) + _(" cycles");
 	  	print_action(run_str);
 	  	
 	  	
@@ -1426,6 +1466,8 @@ void MyFrame::OnRunButton(wxCommandEvent &event)
 	}
 }
 
+// Event handler for the continue button
+
 void MyFrame::OnContinueButton(wxCommandEvent &event)
 {
 	if(run_flag == true)
@@ -1434,7 +1476,7 @@ void MyFrame::OnContinueButton(wxCommandEvent &event)
 		if(ncycles > 0)
 		{
 			runnetwork(spin->GetValue());
-			string continue_str = "Simulation continued for an additional " + to_string(spin->GetValue()) + " cycles";
+			string continue_str = _("Simulation continued for an additional ") + to_string(spin->GetValue()) + _(" cycles");
 			print_action(continue_str);
 		
 			canvas->cont(spin->GetValue());
@@ -1442,7 +1484,7 @@ void MyFrame::OnContinueButton(wxCommandEvent &event)
 	}
 	else
 	{
-		wxMessageBox( wxT("You think you could continue before running?"), wxT("Warning"), wxICON_EXCLAMATION);
+		wxMessageBox( _("You think you could continue before running?"), _("Warning"), wxICON_EXCLAMATION);
 	}	
 }
 
@@ -1453,16 +1495,21 @@ void MyFrame::SaveCanvas(wxCommandEvent &event)
 	canvas->save_canvas();
 }
 
+// Calls a function to pan the canvas to the start of the simulation
+
 void MyFrame::OnStart(wxCommandEvent &event)
 {
 	canvas->goToStart();
 }
 
+// Calls a function to pan the canvas to the end of the simulation
 
 void MyFrame::OnEnd(wxCommandEvent &event)
 {
 	canvas->goToEnd();
 }
+
+// Similar to the zooming functions above but handles zooming in vertically and horizontally by the same amount using the shortcuts
 
 void MyFrame::OnZoomIn(wxCommandEvent &event)
 {
@@ -1470,7 +1517,7 @@ void MyFrame::OnZoomIn(wxCommandEvent &event)
 	int horz_sliderpos = horz_zoom_slider->GetValue();
 	vert_sliderpos += 5;
 	horz_sliderpos += 5;
-	if(vert_sliderpos > 100) vert_sliderpos = 100;
+	if(vert_sliderpos > 100) vert_sliderpos = 100;	// Ensures that the value of the slider never goes above 100
 	if(horz_sliderpos > 100) horz_sliderpos=100;
 	
 	vert_zoom_slider->SetValue(vert_sliderpos);
@@ -1478,6 +1525,8 @@ void MyFrame::OnZoomIn(wxCommandEvent &event)
 		
 	float horz_zoom_fl;
   	int horz_zoom_int;
+  	
+  	// As previously, this makes it so that the zooming out part of the slider bar takes up as much space as the zooming in part
 
   	if(horz_sliderpos <= 50) 
   	{
@@ -1492,7 +1541,7 @@ void MyFrame::OnZoomIn(wxCommandEvent &event)
   	}
 
   	string horz_zoom_str = "x" + to_string(horz_zoom_int) + "%";
-  	wxString horz_zoom_wxstr(horz_zoom_str.c_str(), wxConvUTF8);
+  	wxString horz_zoom_wxstr(horz_zoom_str.c_str(), wxConvUTF8);	// Converts a standard string to a wxString
 
   	horz_zoom_value->SetLabel(horz_zoom_wxstr);
   	
@@ -1513,14 +1562,15 @@ void MyFrame::OnZoomIn(wxCommandEvent &event)
   	}
   	
   	string vert_zoom_str = "x" + to_string(vert_zoom_int) + "%";
-  	wxString vert_zoom_wxstr(vert_zoom_str.c_str(), wxConvUTF8);
+  	wxString vert_zoom_wxstr(vert_zoom_str.c_str(), wxConvUTF8);	// Converts a standard string to a wxString
 
   	vert_zoom_value->SetLabel(vert_zoom_wxstr);
-  
   
   	canvas->ZoomVert(vert_zoom_int);
   	canvas->ZoomHor(horz_zoom_int);
 }
+
+// Similar to the zooming functions above but handles zooming out vertically and horizontally by the same amount using the shortcuts
 
 void MyFrame::OnZoomOut(wxCommandEvent &event)
 {
@@ -1528,7 +1578,7 @@ void MyFrame::OnZoomOut(wxCommandEvent &event)
 	int horz_sliderpos = horz_zoom_slider->GetValue();
 	vert_sliderpos -= 5;
 	horz_sliderpos -= 5;
-	if(vert_sliderpos < 0) vert_sliderpos = 0;
+	if(vert_sliderpos < 0) vert_sliderpos = 0;	// Ensures that the value of the slider never goes below 0
 	if(horz_sliderpos <0) horz_sliderpos=0;
 	
 	vert_zoom_slider->SetValue(vert_sliderpos);
@@ -1536,6 +1586,8 @@ void MyFrame::OnZoomOut(wxCommandEvent &event)
 		
 	float horz_zoom_fl;
   	int horz_zoom_int;
+  	
+  	// As previously, this makes it so that the zooming out part of the slider bar takes up as much space as the zooming in part  	
 
   	if(horz_sliderpos <= 50) 
   	{
@@ -1550,7 +1602,7 @@ void MyFrame::OnZoomOut(wxCommandEvent &event)
   	}
 
   	string horz_zoom_str = "x" + to_string(horz_zoom_int) + "%";
-  	wxString horz_zoom_wxstr(horz_zoom_str.c_str(), wxConvUTF8);
+  	wxString horz_zoom_wxstr(horz_zoom_str.c_str(), wxConvUTF8);	// Converts a standard string to a wxString
 
   	horz_zoom_value->SetLabel(horz_zoom_wxstr);
   	
@@ -1571,15 +1623,16 @@ void MyFrame::OnZoomOut(wxCommandEvent &event)
   	}
   	
   	string vert_zoom_str = "x" + to_string(vert_zoom_int) + "%";
-  	wxString vert_zoom_wxstr(vert_zoom_str.c_str(), wxConvUTF8);
+  	wxString vert_zoom_wxstr(vert_zoom_str.c_str(), wxConvUTF8);	// Converts a standard string to a wxString
 
   	vert_zoom_value->SetLabel(vert_zoom_wxstr);
-  
   
   	canvas->ZoomVert(vert_zoom_int);
   	canvas->ZoomHor(horz_zoom_int);
   	
 }
+
+// Similar to the zooming functions above but handles zooming in/out vertically and horizontally by the same amount using the mouse wheel
 
 void MyFrame::OnMouse(wxMouseEvent &event)
 {
@@ -1604,17 +1657,18 @@ void MyFrame::OnMouse(wxMouseEvent &event)
 	int horz_sliderpos = horz_zoom_slider->GetValue();
 	vert_sliderpos += num;
 	horz_sliderpos += num;
-	if(vert_sliderpos < 0) vert_sliderpos = 0;
-	if(horz_sliderpos <0) horz_sliderpos=0;
-	if(vert_sliderpos > 100) vert_sliderpos = 100;
+	if(vert_sliderpos < 0) vert_sliderpos = 0;			// Ensures that the value of the slider never goes below 0
+	if(horz_sliderpos <0) horz_sliderpos = 0;			
+	if(vert_sliderpos > 100) vert_sliderpos = 100; 		// Ensures that the value of the slider never goes above 100
 	if(horz_sliderpos > 100) horz_sliderpos= 100;
-	
 	
 	vert_zoom_slider->SetValue(vert_sliderpos);
 	horz_zoom_slider->SetValue(horz_sliderpos);
 		
 	float horz_zoom_fl;
   	int horz_zoom_int;
+
+  	// As previously, this makes it so that the zooming out part of the slider bar takes up as much space as the zooming in part
 
   	if(horz_sliderpos <= 50) 
   	{
@@ -1629,10 +1683,9 @@ void MyFrame::OnMouse(wxMouseEvent &event)
   	}
 
   	string horz_zoom_str = "x" + to_string(horz_zoom_int) + "%";
-  	wxString horz_zoom_wxstr(horz_zoom_str.c_str(), wxConvUTF8);
+  	wxString horz_zoom_wxstr(horz_zoom_str.c_str(), wxConvUTF8); 	// Converts a standard string to a wxString
 
   	horz_zoom_value->SetLabel(horz_zoom_wxstr);
-  	
   	
   	float vert_zoom_fl;
   	int vert_zoom_int;
@@ -1650,41 +1703,59 @@ void MyFrame::OnMouse(wxMouseEvent &event)
   	}
   	
   	string vert_zoom_str = "x" + to_string(vert_zoom_int) + "%";
-  	wxString vert_zoom_wxstr(vert_zoom_str.c_str(), wxConvUTF8);
+  	wxString vert_zoom_wxstr(vert_zoom_str.c_str(), wxConvUTF8);	// Converts a standard string to a wxString
 
   	vert_zoom_value->SetLabel(vert_zoom_wxstr);
-  
   
   	canvas->ZoomVert(vert_zoom_int);
   	canvas->ZoomHor(horz_zoom_int);
 	
 }
 
-void MyFrame::runnetwork(int ncycles)
+
   	// Function to run the network, derived from corresponding function in userint.cc
+void MyFrame::runnetwork(int ncycles)
 {
   	bool ok = true;
   	int n = ncycles;
+  	
+  	
 
-  	while ((n > 0) && ok) {
+  	while ((n > 0) && ok) 
+  	{
+  		for(int i = 0; i < rcList.size(); i++)
+  		{
+  			if(rcList[i].changeStateAt == cyclescompleted - n + ncycles)  				
+  			{
+  				dmz -> setswitch(rcList[i].id, low, ok);
+  				if(!ok)
+  				{
+  					cout << _("Could not change RC state") << endl;
+  				}
+  			}
+  		}
+  		
+  		
 		dmz->executedevices (ok);
-		if (ok) {
-  		n--;
-  		mmz->recordsignals ();
-		} else
-  		cout << "Error: network is oscillating" << endl;
+		if (ok) 
+		{
+	  		n--;
+	  		mmz->recordsignals ();
+		} 
+		else cout << _("Error: network is oscillating") << endl;
   	}
   	if (ok) cyclescompleted = cyclescompleted + ncycles;
   	else cyclescompleted = 0;
 	
 }
 
-// Function to print out the actions carried out by the user to the dialog box at the bottom of the application
+// Function to print out the actions carried out by the user to the dialog box at the bottom of the application. This takes in standard strings and adds them as wxStrings to the wxListBox used for the dialog box
 
 void MyFrame::print_action(string message)
 {
   	string action_message = to_string(action_num) + ": " + message; 
   	
+  	// Converts a regular string to a wxString
   	
   	wxString message_wxstr(action_message.c_str(), wxConvUTF8);
 	
@@ -1694,6 +1765,8 @@ void MyFrame::print_action(string message)
 	
 	action_num = action_num+1;	
 }
+
+// Updates slider values when zooming is caried out on the canvas. Zooming whilst on the canvas and zooming whilst on the frame are treated as two separate events
 
 void MyFrame::zoom(int n)
 {
@@ -1727,7 +1800,7 @@ void MyFrame::zoom(int n)
   	}
 
   	string horz_zoom_str = "x" + to_string(horz_zoom_int) + "%";
-  	wxString horz_zoom_wxstr(horz_zoom_str.c_str(), wxConvUTF8);
+  	wxString horz_zoom_wxstr(horz_zoom_str.c_str(), wxConvUTF8); 	// Converts a standard string to a wxString
 
   	horz_zoom_value->SetLabel(horz_zoom_wxstr);
   	
@@ -1748,7 +1821,7 @@ void MyFrame::zoom(int n)
   	}
   	
   	string vert_zoom_str = "x" + to_string(vert_zoom_int) + "%";
-  	wxString vert_zoom_wxstr(vert_zoom_str.c_str(), wxConvUTF8);
+  	wxString vert_zoom_wxstr(vert_zoom_str.c_str(), wxConvUTF8);	// Converts a standard string to a wxString
 
   	vert_zoom_value->SetLabel(vert_zoom_wxstr);
   
@@ -1757,18 +1830,15 @@ void MyFrame::zoom(int n)
   	canvas->ZoomHor(horz_zoom_int);
 }
 
+// Function to display the help menu within a wxDialog when the buttons or the shortcuts are used
+
 void MyFrame::ShowHelp(wxCommandEvent &event)
 {
-/*
-		helpD = new wxSimpleHelpProvider();
-		helpD-> AddHelp(this, "Set the number of clock cycles to run, the default is set to 10. Pressing continue will run the simulation for an additional number of cycles from where the initial run stopped. Pressing the run button again will start from time 0.\n\n The switch state is on when the switch is ticked and off otherwise. Monitoring points can be changed in a similar fashion.\n\n Vertical and horizontal zoom can be set independently from the sliders. Zooming can also be achieved using the mouse wheel.  By pressing control and using the mouse wheel the user can scroll through all the monitored devices. Zooming in while keeping the aspect ratio constant can also be achieved using Ctrl-Z while zooming out is possible using Ctrl-Shift-Z.\n\n The user can go to time zero or to the current time by using the toolbar buttons. \n\n The displayed signals can be saved to a PNG image using the save icon on the toolbar or using the shortcut.\n\n the grid can be toggled on or off. The settings and dialog window can also be toggled on or off to increase the signal viewing area");
-		helpD->ShowHelp(this);
-		*/
-		ifstream hfile;
+		ifstream hfile;		// Opens the help file, which is where the text in the dialog is read from
 		char ch;
 		string hstring, tmp;
 		
-		helpD = new wxDialog(this, -1, "Help", wxDefaultPosition, wxSize(350,500), wxDEFAULT_DIALOG_STYLE);
+		helpD = new wxDialog(this, -1, _("Help"), wxDefaultPosition, wxSize(350,500), wxDEFAULT_DIALOG_STYLE);
 		wxTextCtrl textarea(helpD, -1,"", wxDefaultPosition, wxSize(300,400),
       wxTE_MULTILINE | wxTE_RICH | wxTE_READONLY, wxDefaultValidator, wxTextCtrlNameStr);
 		
@@ -1781,25 +1851,7 @@ void MyFrame::ShowHelp(wxCommandEvent &event)
 		}
 		
 		textarea.SetValue(hstring);		
-		//textarea.SetEditable(false);
-		
-		
-		textarea.SetFocus();
-
-		
+		textarea.SetFocus();	
 		helpD->ShowModal();
-		
 }
-
-
-
-
-
-
-
-
-
-
-
-
 

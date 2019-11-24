@@ -1,0 +1,61 @@
+g++ -std=c++11 -c `/homes/ahg13/wxWidgets-3.0.3/gtk-build/wx-config --version=3.0 --cxxflags` -g -o scanner.o scanner.cc
+scanner.cc: In constructor ‘Scanner::Scanner(names*, std::string)’:
+scanner.cc:158:11: error: use of deleted function ‘Input_Buffer& Input_Buffer::operator=(Input_Buffer&&)’
+  inBuffer = Input_Buffer(file);
+           ^
+In file included from scanner.cc:10:0:
+scanner.h:24:7: note: ‘Input_Buffer& Input_Buffer::operator=(Input_Buffer&&)’ is implicitly deleted because the default definition would be ill-formed:
+ class Input_Buffer{
+       ^
+scanner.h:24:7: error: use of deleted function ‘std::basic_ifstream<char>& std::basic_ifstream<char>::operator=(const std::basic_ifstream<char>&)’
+In file included from scanner.cc:8:0:
+/usr/include/c++/4.8.2/fstream:427:11: note: ‘std::basic_ifstream<char>& std::basic_ifstream<char>::operator=(const std::basic_ifstream<char>&)’ is implicitly deleted because the default definition would be ill-formed:
+     class basic_ifstream : public basic_istream<_CharT, _Traits>
+           ^
+/usr/include/c++/4.8.2/fstream:427:11: error: use of deleted function ‘std::basic_istream<char>& std::basic_istream<char>::operator=(const std::basic_istream<char>&)’
+In file included from /usr/include/c++/4.8.2/iostream:40:0,
+                 from scanner.cc:2:
+/usr/include/c++/4.8.2/istream:58:11: note: ‘std::basic_istream<char>& std::basic_istream<char>::operator=(const std::basic_istream<char>&)’ is implicitly deleted because the default definition would be ill-formed:
+     class basic_istream : virtual public basic_ios<_CharT, _Traits>
+           ^
+/usr/include/c++/4.8.2/istream:58:11: error: use of deleted function ‘std::basic_ios<char>& std::basic_ios<char>::operator=(const std::basic_ios<char>&)’
+In file included from /usr/include/c++/4.8.2/ios:44:0,
+                 from /usr/include/c++/4.8.2/ostream:38,
+                 from /usr/include/c++/4.8.2/iostream:39,
+                 from scanner.cc:2:
+/usr/include/c++/4.8.2/bits/basic_ios.h:66:11: note: ‘std::basic_ios<char>& std::basic_ios<char>::operator=(const std::basic_ios<char>&)’ is implicitly deleted because the default definition would be ill-formed:
+     class basic_ios : public ios_base
+           ^
+In file included from /usr/include/c++/4.8.2/ios:42:0,
+                 from /usr/include/c++/4.8.2/ostream:38,
+                 from /usr/include/c++/4.8.2/iostream:39,
+                 from scanner.cc:2:
+/usr/include/c++/4.8.2/bits/ios_base.h:789:5: error: ‘std::ios_base& std::ios_base::operator=(const std::ios_base&)’ is private
+     operator=(const ios_base&);
+     ^
+In file included from /usr/include/c++/4.8.2/ios:44:0,
+                 from /usr/include/c++/4.8.2/ostream:38,
+                 from /usr/include/c++/4.8.2/iostream:39,
+                 from scanner.cc:2:
+/usr/include/c++/4.8.2/bits/basic_ios.h:66:11: error: within this context
+     class basic_ios : public ios_base
+           ^
+In file included from scanner.cc:8:0:
+/usr/include/c++/4.8.2/fstream:427:11: error: use of deleted function ‘std::basic_filebuf<char>& std::basic_filebuf<char>::operator=(const std::basic_filebuf<char>&)’
+     class basic_ifstream : public basic_istream<_CharT, _Traits>
+           ^
+/usr/include/c++/4.8.2/fstream:72:11: note: ‘std::basic_filebuf<char>& std::basic_filebuf<char>::operator=(const std::basic_filebuf<char>&)’ is implicitly deleted because the default definition would be ill-formed:
+     class basic_filebuf : public basic_streambuf<_CharT, _Traits>
+           ^
+In file included from /usr/include/c++/4.8.2/ios:43:0,
+                 from /usr/include/c++/4.8.2/ostream:38,
+                 from /usr/include/c++/4.8.2/iostream:39,
+                 from scanner.cc:2:
+/usr/include/c++/4.8.2/streambuf:810:7: error: ‘std::basic_streambuf<_CharT, _Traits>& std::basic_streambuf<_CharT, _Traits>::operator=(const std::basic_streambuf<_CharT, _Traits>&) [with _CharT = char; _Traits = std::char_traits<char>]’ is private
+       operator=(const basic_streambuf& __sb)
+       ^
+In file included from scanner.cc:8:0:
+/usr/include/c++/4.8.2/fstream:72:11: error: within this context
+     class basic_filebuf : public basic_streambuf<_CharT, _Traits>
+           ^
+make: *** [scanner.o] Error 1

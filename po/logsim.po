@@ -1,0 +1,219 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2018-06-05 14:27+0100\n"
+"PO-Revision-Date: 2018-06-05 17:59+0100\n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 2.0.7\n"
+"Last-Translator: \n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"Language: es\n"
+
+#: gui.cc:1459 gui.cc:1479
+msgid " cycles"
+msgstr " ciclos"
+
+#: gui.cc:1324
+msgid " off"
+msgstr "apagado"
+
+#: gui.cc:1320
+msgid " on"
+msgstr "encendido"
+
+#: gui.cc:1313
+msgid " toggled off"
+msgstr " apagado"
+
+#: gui.cc:1309
+msgid " toggled on"
+msgstr " encendido"
+
+#: gui.cc:1088
+msgid "&Continue\tCtrl-C"
+msgstr "Continuar\tCtrl-C"
+
+#: gui.cc:1105
+msgid "&File"
+msgstr "Archivo"
+
+#: gui.cc:1091
+msgid "&Help\tCtrl-H"
+msgstr "Ayuda\tCtrl-H"
+
+#: gui.cc:1103 gui.cc:1268
+msgid "&Hide Dialog Window"
+msgstr "Esconder Historial"
+
+#: gui.cc:1102 gui.cc:1251
+msgid "&Hide Settings Window"
+msgstr "Esconder Ajustes"
+
+#: gui.cc:1092
+msgid "&Quit\tCtrl-Q"
+msgstr "Salir\tCtrl-Q"
+
+#: gui.cc:1087
+msgid "&Run \tCtrl-R"
+msgstr "Ejecutar \tCtrl-R"
+
+#: gui.cc:1089
+msgid "&Save As...\tCtrl-S"
+msgstr "Guardar Como...\tCtrl-S"
+
+#: gui.cc:1264
+msgid "&Show Dialog Window"
+msgstr "Mostrar Historial"
+
+#: gui.cc:1247
+msgid "&Show Settings Window"
+msgstr "Mostrar Ajustes"
+
+#: gui.cc:1106
+msgid "&View"
+msgstr "Perspectiva"
+
+#: gui.cc:1107
+msgid "&Window"
+msgstr "Ventana"
+
+#: gui.cc:1080
+msgid "1: Initialised program"
+msgstr "1: Programa inicializado"
+
+#: gui.cc:1348
+msgid "Added monitor to "
+msgstr "Monitor añadido a "
+
+#: gui.cc:945
+msgid "Cannot operate GUI without names, devices, parser and monitor classes"
+msgstr "No se puede operar GUI sin nombres, aparatos, parse y clases de monitor"
+
+#: gui.cc:1170
+msgid "Continue"
+msgstr "Continuar"
+
+#: gui.cc:1352
+msgid "Could not add monitor to "
+msgstr "No se pudo añadir monitor a "
+
+#: gui.cc:1450 gui.cc:1733
+msgid "Could not change RC state"
+msgstr "No se pudo cambiar estado RC"
+
+#: gui.cc:1367
+msgid "Could not remove monitor from "
+msgstr "No se pudo quitar monitor de "
+
+#: gui.cc:1320 gui.cc:1324
+msgid "Could not toggle switch "
+msgstr "No se pudo cambiar el estado del interruptor"
+
+#: gui.cc:1745
+msgid "Error: network is oscillating"
+msgstr "Error: la red esta oscilando"
+
+#: gui.cc:1095
+msgid "Go To &End\tShift-Ctrl-E"
+msgstr "Ir Al Final\tShift-Ctrl-E"
+
+#: gui.cc:1094
+msgid "Go To &Start\tShift-Ctrl-S"
+msgstr "Ir Al Principio\tShift-Ctrl-S"
+
+#: gui.cc:1187
+msgid "Go To End"
+msgstr "Ir Al Final"
+
+#: gui.cc:1186
+msgid "Go To Start"
+msgstr "Ir Al Principio"
+
+#: gui.cc:1841
+msgid "Help"
+msgstr "Ayuda"
+
+#: gui.cc:1100 gui.cc:1235
+msgid "Hide &Grid\tCtrl-G"
+msgstr "Esconder &Cuadricula\tCtrl-G"
+
+#: gui.cc:1156
+msgid "Horizontal Zoom"
+msgstr "Zoom Horizontal"
+
+#: gui.cc:1140
+msgid "Monitor Points"
+msgstr "Puntos de Monitor"
+
+#: gui.cc:1128
+msgid "Number of Cycles"
+msgstr "Numero de Ciclos"
+
+#: gui.cc:1278
+msgid "Number of simulated cycles set to "
+msgstr "Number de ciclos ajustado a "
+
+#: gui.cc:1363
+msgid "Removed monitor from "
+msgstr "Se quito punto de monitor de "
+
+#: gui.cc:1166
+msgid "Run"
+msgstr "Ejecutar"
+
+#: gui.cc:1188
+msgid "Save As"
+msgstr "Guardar Como"
+
+#: gui.cc:1188
+msgid "Save Circuit"
+msgstr "Guardar Circuito"
+
+#: gui.cc:1231
+msgid "Show &Grid\tCtrl-G"
+msgstr "Mostrar&Cuadricula\tCtrl-G"
+
+#: gui.cc:1479
+msgid "Simulation continued for an additional "
+msgstr "Simulacion continuada durante "
+
+#: gui.cc:1459
+msgid "Simulation started for "
+msgstr "Simulacion ejecutada durante "
+
+#: gui.cc:1309 gui.cc:1313
+msgid "Switch "
+msgstr "Interruptor "
+
+#: gui.cc:1134
+msgid "Switch State"
+msgstr "Estado del Interruptor"
+
+#: gui.cc:1146
+msgid "Vertical Zoom"
+msgstr "Zoom Vertical"
+
+#: gui.cc:1487
+msgid "Warning"
+msgstr "Aviso"
+
+#: gui.cc:1487
+msgid "You think you could continue before running?"
+msgstr "No se puede continuar antes de ejecutar"
+
+#: gui.cc:1097
+msgid "Zoom In\tCtrl-Z"
+msgstr "Aumentar Zoom\tCtrl-Z"
+
+#: gui.cc:1098
+msgid "Zoom Out\tShift-Ctrl-Z"
+msgstr "Disminuir Zoom\tShift-Ctrl-Z"
